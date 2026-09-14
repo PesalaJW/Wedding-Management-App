@@ -1,0 +1,2524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pesala &amp; Nisuri — Wedding Management Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Optional: only used if a real Firebase config is filled in below (search FIREBASE_CONFIG).
+     Until then these load but sit unused, and the app runs on this browser's local storage only. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --beige:#F7F2E4;
+    --beige-dim:#ECE1C3;
+    --paper:#FFFEFA;
+    --emerald:#1F3F31;
+    --emerald-deep:#122A20;
+    --emerald-mid:#3C6B54;
+    --gold:#BB9552;
+    --gold-light:#D8BD82;
+    --gold-pale:#EFE2BE;
+    --ink:#26241C;
+    --ink-soft:#726A57;
+    --line:#E1D3A9;
+    --good:#3E7E56;
+    --bad:#A6503B;
+    --warn:#A67C2E;
+    --shadow: 0 6px 20px rgba(31,63,49,0.08);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--beige);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:14px;
+    line-height:1.5;
+    padding-bottom:60px;
+  }
+  h1,h2,h3,.display{ font-family:'Cormorant Garamond', serif; }
+
+  /* ---------- header ---------- */
+  header.hero{
+    background: linear-gradient(160deg, var(--emerald) 0%, var(--emerald-deep) 100%);
+    color:var(--gold-pale);
+    padding:36px 24px 24px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:2px solid var(--gold);
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image: radial-gradient(circle at 12% 25%, rgba(216,189,130,0.10) 0, transparent 40%),
+                       radial-gradient(circle at 88% 78%, rgba(216,189,130,0.08) 0, transparent 45%);
+    pointer-events:none;
+  }
+  .hero-inner{ max-width:1240px; margin:0 auto; position:relative; z-index:1; }
+  .hero-top{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; }
+  .names{
+    font-size:40px; font-weight:600; letter-spacing:0.3px; color:#fff;
+    display:flex; align-items:center; gap:14px; margin:0;
+  }
+  .names .amp{ color:var(--gold-light); font-style:italic; font-size:30px; }
+  .names span[contenteditable]{
+    outline:none; cursor:text; display:inline-block; min-width:22px;
+    border-bottom:1px dashed transparent; border-radius:3px; padding:0 3px;
+  }
+  .names span[contenteditable]:hover{ border-bottom-color:rgba(255,255,255,0.35); }
+  .names span[contenteditable]:focus{ border-bottom-color:var(--gold-light); background:rgba(255,255,255,0.08); }
+  .eyebrow{
+    text-transform:uppercase; letter-spacing:2.5px; font-size:11px; color:var(--gold-light);
+    font-family:'Inter',sans-serif; font-weight:600; margin:0 0 6px;
+  }
+  .hero-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; width:100%; }
+  .hero-meta > div{ flex:1 1 140px; min-width:120px; }
+  .hero-meta label{
+    display:block; font-size:10px; text-transform:uppercase; letter-spacing:1.5px;
+    color:var(--gold-light); opacity:0.85; margin-bottom:4px;
+  }
+  header.hero .hero-meta input{
+    background:transparent; border:none; border-bottom:1px solid rgba(216,189,130,0.45);
+    color:#fff; font-family:'Cormorant Garamond',serif; font-size:17px; padding:4px 0; width:100%;
+  }
+  header.hero .hero-meta input:focus{ outline:none; border-bottom-color:var(--gold-light); }
+  #dateInput::-webkit-datetime-edit-fields-wrapper,
+  #dateInput::-webkit-datetime-edit-text,
+  #dateInput::-webkit-datetime-edit-month-field,
+  #dateInput::-webkit-datetime-edit-day-field,
+  #dateInput::-webkit-datetime-edit-year-field{ color:#fff; }
+  #dateInput::-webkit-calendar-picker-indicator{ filter:invert(1) brightness(1.6); cursor:pointer; }
+
+  /* ---------- nav ---------- */
+  nav.tabs{
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+    box-shadow: 0 2px 10px rgba(31,63,49,0.06);
+  }
+  .tabs-inner{
+    max-width:1240px; margin:0 auto; display:flex; overflow-x:auto; scrollbar-width:thin;
+  }
+  .tab-btn{
+    background:none; border:none; cursor:pointer; padding:14px 18px 12px;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--ink-soft);
+    white-space:nowrap; border-bottom:3px solid transparent; letter-spacing:0.2px;
+  }
+  .tab-btn:hover{ color:var(--emerald); }
+  .tab-btn.active{ color:var(--emerald); border-bottom-color:var(--gold); }
+
+  main{ max-width:1240px; margin:0 auto; padding:26px 24px 10px; }
+  .view{ display:none; }
+  .view.active{ display:block; animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .panel{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:20px 22px; margin-bottom:22px;
+  }
+  .panel h2{
+    margin:0 0 4px; font-size:22px; color:var(--emerald-deep); font-weight:600;
+  }
+  .panel .sub{ color:var(--ink-soft); font-size:12.5px; margin:0 0 16px; }
+
+  /* ---------- overview cards ---------- */
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:22px; }
+  .card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .card .label{ font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--ink-soft); font-weight:600; }
+  .card .value{ font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:700; color:var(--emerald-deep); margin-top:4px; }
+  .card .value.good{ color:var(--good); }
+  .card .value.bad{ color:var(--bad); }
+  .card .note{ font-size:11.5px; color:var(--ink-soft); margin-top:3px; }
+
+  .overview-grid{ display:grid; grid-template-columns: 1.3fr 1fr; gap:20px; }
+  @media (max-width:820px){ .overview-grid{ grid-template-columns:1fr; } }
+
+  .gauge-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 0 4px; }
+  .gauge{
+    width:170px; height:170px; border-radius:50%; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    background: conic-gradient(var(--gold) calc(var(--pct)*1%), var(--beige-dim) 0);
+  }
+  .gauge::before{
+    content:""; position:absolute; width:130px; height:130px; border-radius:50%;
+    background:var(--paper); border:1px solid var(--line);
+  }
+  .gauge .gauge-text{ position:relative; z-index:1; text-align:center; }
+  .gauge .gauge-text .pct{ font-family:'Cormorant Garamond',serif; font-size:32px; font-weight:700; color:var(--emerald-deep); }
+  .gauge .gauge-text .lbl{ font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:1px; }
+
+  .mini-list{ list-style:none; padding:0; margin:14px 0 0; }
+  .mini-list li{ display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:13px; }
+  .mini-list li:last-child{ border-bottom:none; }
+  .mini-list .tag{ color:var(--ink-soft); }
+  .mini-list .num{ font-weight:600; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.7px;
+    color:var(--emerald-deep); border-bottom:2px solid var(--gold); padding:7px 8px; font-weight:700;
+    background:var(--gold-pale);
+  }
+  thead tr.group-row th{
+    font-size:10px; text-align:center; background:var(--emerald); color:#fff; border-bottom:1px solid var(--emerald-deep);
+  }
+  tbody td{ padding:5px 7px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr:hover{ background:var(--beige-dim); }
+  tfoot td{ padding:10px 8px; font-weight:700; border-top:2px solid var(--gold); background:var(--gold-pale); color:var(--emerald-deep); }
+  .subtotal-row td{ background:var(--beige-dim); font-weight:600; color:var(--emerald-deep); font-style:italic; }
+  .add-row td{ background:var(--paper); padding:6px 8px; border-bottom:1px solid var(--line); }
+  .add-row button{ width:100%; text-align:left; }
+
+  input[type=text], input[type=number], input[type=date], select{
+    font-family:'Inter',sans-serif; font-size:13px; border:1px solid transparent; background:transparent;
+    padding:5px 6px; border-radius:6px; width:100%; color:var(--ink);
+  }
+  input[type=text]:hover, input[type=number]:hover, input[type=date]:hover, select:hover{ border-color:var(--line); }
+  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, select:focus{
+    outline:none; border-color:var(--gold); background:var(--beige-dim);
+  }
+  /* numbers: left-aligned & select-all-on-focus (via JS) so typing isn't awkward */
+  input[type=number]{ text-align:left; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+  input[type=number]{ -moz-appearance:textfield; }
+  td.num, th.num{ text-align:right; }
+  td.total-cell{ font-weight:600; color:var(--emerald-deep); text-align:right; white-space:nowrap; }
+  td.readonly-desc{ color:var(--ink); font-weight:500; }
+  td.cat-badge{ font-size:11px; color:var(--ink-soft); }
+
+  .col-del{ width:34px; text-align:center; }
+  .icon-btn{
+    background:none; border:1px solid var(--line); border-radius:6px; width:26px; height:26px;
+    cursor:pointer; color:var(--bad); font-size:14px; line-height:1;
+  }
+  .icon-btn:hover{ background:var(--bad); color:#fff; border-color:var(--bad); }
+
+  .toolbar{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+  button.btn{
+    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;
+    border-radius:7px; padding:8px 14px; border:1px solid var(--gold); background:transparent; color:var(--emerald-deep);
+  }
+  button.btn:hover{ background:var(--gold); color:#fff; }
+  button.btn.primary{ background:var(--emerald); color:#fff; border-color:var(--emerald); }
+  button.btn.primary:hover{ background:var(--emerald-deep); }
+  button.btn.ghost{ border-color:var(--line); color:var(--ink-soft); background:none; }
+  button.btn.ghost:hover{ background:var(--beige-dim); color:var(--ink); }
+  button.btn.small{ padding:4px 10px; font-size:11.5px; border-style:dashed; }
+
+  .table-scroll{ overflow-x:auto; }
+
+  .funding-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px){ .funding-grid{ grid-template-columns:1fr; } }
+  .person-card{ border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; background:var(--beige-dim); }
+  .person-card h3{ margin:0 0 10px; font-size:19px; color:var(--emerald-deep); }
+  .person-card .row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed var(--line); font-size:13px; gap:10px; }
+  .person-card .row:last-child{ border-bottom:none; }
+  .person-card input[type=number]{ width:130px; text-align:left; background:var(--paper); border-color:var(--line); }
+
+  .guest-summary{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .pill{
+    background:var(--beige-dim); border:1px solid var(--line); border-radius:20px; padding:6px 14px;
+    font-size:12px; color:var(--ink-soft); display:flex; gap:6px; align-items:center;
+  }
+  .pill b{ color:var(--emerald-deep); font-size:13px; }
+  .pill.whisky b{ color:#7a4a1e; }
+  .pill.wine b{ color:#7a1f3a; }
+
+  select.status-select{ font-weight:600; }
+  select.status-confirmed{ color:var(--good); }
+  select.status-pending{ color:var(--warn); }
+  select.status-not_coming{ color:var(--bad); }
+
+  /* payment ledger compound cells */
+  .pay-cell{ display:flex; flex-direction:column; gap:3px; min-width:130px; }
+  .pay-cell input[type=number]{ background:var(--paper); border-color:var(--line); }
+  .pay-cell select{ background:var(--paper); border-color:var(--line); font-size:11.5px; }
+
+  /* checklist */
+  .checklist-section{ border:1px solid var(--line); border-radius:var(--radius); margin-bottom:16px; overflow:hidden; }
+  .checklist-section-head{
+    display:flex; justify-content:space-between; align-items:center; padding:10px 16px;
+    background:var(--gold-pale); border-bottom:1px solid var(--line);
+  }
+  .checklist-section-head h3{ margin:0; font-size:18px; color:var(--emerald-deep); }
+  .checklist-section-head .progress{ font-size:12px; color:var(--ink-soft); font-weight:600; }
+  .checklist-items{ list-style:none; margin:0; padding:6px 0; }
+  .checklist-item{
+    display:flex; align-items:center; gap:10px; padding:6px 16px; border-bottom:1px dashed var(--line);
+  }
+  .checklist-item:last-child{ border-bottom:none; }
+  .checklist-item input[type=checkbox]{ width:17px; height:17px; accent-color:var(--emerald); flex:none; cursor:pointer; }
+  .checklist-item input[type=text]{ flex:1; }
+  .checklist-item.done input[type=text]{ color:var(--ink-soft); text-decoration:line-through; }
+  .checklist-add-row{ padding:8px 16px; }
+
+  footer.app-footer{
+    max-width:1240px; margin:6px auto 0; padding:0 24px; display:flex; justify-content:space-between;
+    align-items:center; color:var(--ink-soft); font-size:11.5px; flex-wrap:wrap; gap:8px;
+  }
+  .assumption{
+    font-size:11.5px; color:var(--ink-soft); margin-top:10px; border-top:1px dashed var(--line); padding-top:8px;
+  }
+  .save-indicator{ font-size:11px; color:var(--good); opacity:0; transition:opacity .4s; }
+  .save-indicator.show{ opacity:1; }
+  .sync-badge{
+    font-size:11px; font-weight:600; padding:3px 9px; border-radius:12px; display:inline-flex;
+    align-items:center; gap:5px;
+  }
+  .sync-badge::before{ content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+  .sync-badge.live{ color:var(--good); background:rgba(62,126,86,0.12); }
+  .sync-badge.connecting{ color:var(--warn); background:rgba(166,124,46,0.12); }
+  .sync-badge.error{ color:var(--bad); background:rgba(166,80,59,0.12); }
+
+  /* ---------- auth: login, profile menu, modals ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(18,42,32,0.55); z-index:200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:0 20px 50px rgba(18,42,32,0.35); padding:26px 26px 22px; width:100%; max-width:380px;
+    max-height:90vh; overflow-y:auto;
+  }
+  .modal-card h2{ margin:0 0 14px; font-size:22px; color:var(--emerald-deep); }
+  .modal-card label{
+    display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft);
+    font-weight:600; margin:12px 0 4px;
+  }
+  .modal-card input[type=text], .modal-card input[type=password], .modal-card select{
+    border:1px solid var(--line); background:var(--beige-dim);
+  }
+  .modal-error{ color:var(--bad); font-size:12.5px; margin-top:10px; min-height:1px; }
+  .modal-divider{ border-top:1px dashed var(--line); margin:18px 0; }
+  .login-card{ max-width:340px; text-align:left; }
+  .login-card h2{ margin-top:2px; }
+
+  .profile-widget{ position:fixed; top:14px; left:14px; z-index:210; }
+  .profile-btn{
+    width:40px; height:40px; border-radius:50%; border:2px solid var(--gold-light);
+    background:var(--emerald-deep); color:#fff; font-family:'Cormorant Garamond',serif; font-weight:700;
+    font-size:16px; cursor:pointer; box-shadow:0 4px 14px rgba(18,42,32,0.4);
+  }
+  .profile-menu{
+    display:none; position:absolute; top:48px; left:0; min-width:200px;
+    background:var(--paper); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow);
+    overflow:hidden; padding:6px;
+  }
+  .profile-menu.open{ display:block; }
+  .profile-menu-head{ padding:8px 10px 10px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+  .profile-menu-name{ font-weight:700; color:var(--emerald-deep); font-size:14px; }
+  .profile-menu-role{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.6px; }
+  .profile-menu-item{
+    display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    padding:9px 10px; font-family:'Inter',sans-serif; font-size:13px; color:var(--ink); border-radius:6px;
+  }
+  .profile-menu-item:hover{ background:var(--beige-dim); }
+
+  .user-list{ max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; }
+  .user-row{
+    display:flex; justify-content:space-between; align-items:center; padding:8px 10px;
+    border-bottom:1px solid var(--line); font-size:13px; gap:8px;
+  }
+  .user-row:last-child{ border-bottom:none; }
+  .user-row .u-name{ font-weight:600; color:var(--emerald-deep); }
+  .user-row .u-role{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; }
+
+  .blank-notice{
+    padding:36px 20px; text-align:center; color:var(--ink-soft); font-size:13.5px;
+    border:1px dashed var(--line); border-radius:8px; background:var(--beige-dim);
+  }
+
+  /* ---------- history ---------- */
+  .history-entry{ display:flex; gap:12px; padding:9px 4px; border-bottom:1px dashed var(--line); font-size:13px; }
+  .history-entry:last-child{ border-bottom:none; }
+  .history-entry .h-time{ color:var(--ink-soft); font-size:11.5px; white-space:nowrap; flex:none; width:150px; }
+  .history-entry .h-user{ font-weight:600; color:var(--emerald-deep); flex:none; }
+  .history-entry .h-action{ color:var(--ink); }
+
+  /* ================= RESPONSIVE ================= */
+
+  /* Tablet and below */
+  @media (max-width:900px){
+    main{ padding:20px 16px 10px; }
+    .panel{ padding:16px 16px; }
+    header.hero{ padding:30px 18px 20px; }
+    .names{ font-size:34px; }
+    .cards{ grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+    .funding-grid{ gap:14px; }
+    #budgetTable{ min-width:880px; }
+    #ledgerTable{ min-width:700px; }
+    #agendaTable{ min-width:780px; }
+    #guestTableGroom, #guestTableBride{ min-width:560px; }
+  }
+
+  /* Phones (portrait & landscape) */
+  @media (max-width:640px){
+    body{ font-size:13.5px; padding-bottom:70px; }
+    header.hero{ padding:22px 14px 18px; }
+    .hero-top{ align-items:flex-start; gap:14px; }
+    .names{ font-size:26px; gap:10px; }
+    .names .amp{ font-size:20px; }
+    .eyebrow{ font-size:9.5px; letter-spacing:2px; }
+    .hero-meta{ gap:14px; }
+    .hero-meta label{ font-size:9.5px; }
+    .hero-meta input{ font-size:15px; }
+
+    .tabs-inner{ scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; }
+    .tab-btn{ padding:11px 13px 9px; font-size:12px; scroll-snap-align:start; }
+
+    main{ padding:16px 10px 10px; }
+    .panel{ padding:14px 12px; border-radius:8px; }
+    .panel h2{ font-size:19px; }
+    .panel .sub{ font-size:12px; }
+
+    .cards{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:16px; }
+    .card{ padding:11px 12px; }
+    .card .label{ font-size:10px; }
+    .card .value{ font-size:20px; }
+
+    .overview-grid{ gap:14px; }
+    .gauge{ width:140px; height:140px; }
+    .gauge::before{ width:104px; height:104px; }
+    .gauge .gauge-text .pct{ font-size:26px; }
+
+    /* keep data tables comfortably legible by scrolling the whole table
+       horizontally instead of squeezing every column */
+    table{ font-size:12.5px; }
+    thead th{ font-size:9.5px; padding:6px 6px; }
+    tbody td{ padding:6px 6px; }
+    #budgetTable{ min-width:820px; }
+    #ledgerTable{ min-width:640px; }
+    #agendaTable{ min-width:720px; }
+    #guestTableGroom, #guestTableBride{ min-width:520px; }
+
+    /* larger touch targets */
+    input[type=text], input[type=number], input[type=date], select{
+      font-size:16px; /* prevents iOS Safari auto-zoom on focus */
+      padding:7px 7px;
+    }
+    button.btn{ padding:10px 14px; font-size:12.5px; }
+    button.btn.small{ padding:7px 12px; font-size:11.5px; }
+    .icon-btn{ width:32px; height:32px; font-size:15px; }
+    .toolbar{ gap:8px; }
+    #newCategoryInput, #newChecklistSectionInput{ max-width:none !important; width:100%; }
+    .toolbar > input[type=text]{ flex:1 1 100%; }
+
+    .funding-grid{ grid-template-columns:1fr; }
+    .person-card{ padding:14px 14px; }
+    .person-card .row{ flex-wrap:wrap; }
+    .person-card input[type=number]{ width:110px; }
+
+    .guest-summary{ gap:6px; }
+    .pill{ font-size:11px; padding:5px 11px; }
+
+    .checklist-section-head{ padding:9px 12px; flex-wrap:wrap; gap:4px; }
+    .checklist-section-head h3{ font-size:16px; }
+    .checklist-item{ padding:7px 12px; gap:8px; }
+    .checklist-item input[type=checkbox]{ width:20px; height:20px; }
+    .checklist-add-row{ padding:8px 12px; }
+
+    footer.app-footer{ flex-direction:column; align-items:flex-start; padding:0 12px; }
+    footer.app-footer > span:last-child{ flex-wrap:wrap; width:100%; }
+    footer.app-footer button.btn.ghost{ flex:1 1 auto; }
+  }
+
+  /* Small phones */
+  @media (max-width:380px){
+    .names{ font-size:22px; }
+    .cards{ grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); }
+    .card .value{ font-size:18px; }
+    .gauge{ width:120px; height:120px; }
+    .gauge::before{ width:88px; height:88px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginOverlay" class="modal-overlay">
+  <div class="modal-card login-card">
+    <p class="eyebrow" style="color:var(--gold);">Wedding management application</p>
+    <h2>Sign in</h2>
+    <label>Username</label>
+    <input type="text" id="loginUsername" autocomplete="username" placeholder="Username">
+    <label>Password</label>
+    <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password">
+    <div class="modal-error" id="loginError"></div>
+    <button class="btn primary" id="loginBtn" style="width:100%; margin-top:6px;">Log in</button>
+  </div>
+</div>
+
+<!-- PROFILE BUTTON & MENU -->
+<div id="profileWidget" class="profile-widget">
+  <button id="profileBtn" class="profile-btn" title="Account">?</button>
+  <div id="profileMenu" class="profile-menu">
+    <div class="profile-menu-head">
+      <div class="profile-menu-name" id="profileMenuName">—</div>
+      <div class="profile-menu-role" id="profileMenuRole">—</div>
+    </div>
+    <button class="profile-menu-item" id="openChangePassword">Change password</button>
+    <button class="profile-menu-item" id="openManageUsers" style="display:none;">Manage users</button>
+    <button class="profile-menu-item" id="logoutBtn">Log out</button>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="changePasswordOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h2>Change password</h2>
+    <label>Current password</label>
+    <input type="password" id="cpCurrent" autocomplete="current-password">
+    <label>New password</label>
+    <input type="password" id="cpNew" autocomplete="new-password">
+    <label>Confirm new password</label>
+    <input type="password" id="cpConfirm" autocomplete="new-password">
+    <div class="modal-error" id="cpError"></div>
+    <div class="toolbar" style="margin-top:14px;">
+      <button class="btn primary" id="cpSaveBtn">Save new password</button>
+      <button class="btn ghost" id="cpCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE USERS MODAL -->
+<div id="manageUsersOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card" style="max-width:520px;">
+    <h2>Manage users</h2>
+    <div id="userList" class="user-list"></div>
+    <div class="modal-divider"></div>
+    <p class="sub" style="margin-bottom:10px;">Add a new user</p>
+    <label>Username</label>
+    <input type="text" id="newUserUsername" autocomplete="off">
+    <label>Password</label>
+    <input type="password" id="newUserPassword" autocomplete="new-password">
+    <label>User level</label>
+    <select id="newUserRole"></select>
+    <div class="modal-error" id="newUserError"></div>
+    <div class="toolbar" style="margin-top:14px;">
+      <button class="btn primary" id="createUserBtn">Create user</button>
+      <button class="btn ghost" id="muCancelBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <p class="eyebrow">Wedding management application</p>
+        <h1 class="names"><span id="brideNameDisplay" contenteditable="true" spellcheck="false" title="Click to edit">Nisuri</span><span class="amp">&amp;</span><span id="groomNameDisplay" contenteditable="true" spellcheck="false" title="Click to edit">Pesala</span></h1>
+      </div>
+      <div class="hero-meta">
+        <div>
+          <label for="venueInput">Venue</label>
+          <input type="text" id="venueInput" placeholder="Venue name">
+        </div>
+        <div>
+          <label for="dateInput">Wedding date</label>
+          <input type="date" id="dateInput">
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-inner" id="tabBar">
+    <button class="tab-btn active" data-view="overview">Overview</button>
+    <button class="tab-btn" data-view="budget">Budget (estimate &amp; actual)</button>
+    <button class="tab-btn" data-view="ledger">Payment ledger</button>
+    <button class="tab-btn" data-view="funding">Funding &amp; cash requirement</button>
+    <button class="tab-btn" data-view="guestsGroom">Groom's guests</button>
+    <button class="tab-btn" data-view="guestsBride">Bride's guests</button>
+    <button class="tab-btn" data-view="checklist">Checklist</button>
+    <button class="tab-btn" data-view="agenda">Agenda</button>
+    <button class="tab-btn" data-view="history" id="historyTabBtn" style="display:none;">History</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <section class="view active" id="view-overview">
+    <div class="cards" id="overviewCards"></div>
+    <div class="overview-grid">
+      <div class="panel">
+        <h2>Guest list summary</h2>
+        <p class="sub">Combined RSVP and drink preference across both invite lists.</p>
+        <ul class="mini-list" id="guestSummaryList"></ul>
+      </div>
+      <div class="panel">
+        <h2>Budget used</h2>
+        <p class="sub">Actual spend against total estimate.</p>
+        <div class="gauge-wrap">
+          <div class="gauge" id="spendGauge" style="--pct:0">
+            <div class="gauge-text">
+              <div class="pct" id="gaugePct">0%</div>
+              <div class="lbl">of estimate spent</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUDGET (merged estimate + actual) -->
+  <section class="view" id="view-budget">
+    <div class="panel">
+      <h2>Budget — estimate &amp; actual</h2>
+      <p class="sub">Every line item, grouped by category. Estimate and actual sit side by side so you can compare at a glance. Use "+ Add item" inside a category to add a new row before its subtotal.</p>
+      <div class="toolbar" style="margin-top:0; margin-bottom:16px;">
+        <input type="text" id="newCategoryInput" placeholder="New category name" style="max-width:220px; border:1px solid var(--line); background:var(--paper);">
+        <button class="btn primary" id="addCategoryBtn">+ Add category</button>
+      </div>
+      <div class="table-scroll">
+        <table id="budgetTable">
+          <thead>
+            <tr class="group-row">
+              <th></th><th></th>
+              <th colspan="3">Estimate</th>
+              <th colspan="3">Actual</th>
+              <th></th>
+            </tr>
+            <tr>
+              <th style="width:14%">Category</th>
+              <th style="width:22%">Description</th>
+              <th class="num" style="width:8%">Count</th>
+              <th class="num" style="width:11%">Cost/unit (Rs.)</th>
+              <th class="num" style="width:12%">Total (Rs.)</th>
+              <th class="num" style="width:8%">Count</th>
+              <th class="num" style="width:11%">Cost/unit (Rs.)</th>
+              <th class="num" style="width:12%">Total (Rs.)</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="budgetBody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4">Grand total</td>
+              <td class="num" id="estimateGrandTotal">Rs. 0</td>
+              <td colspan="2"></td>
+              <td class="num" id="actualGrandTotal">Rs. 0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAYMENT LEDGER -->
+  <section class="view" id="view-ledger">
+    <div class="panel">
+      <h2>Payment ledger</h2>
+      <p class="sub">Descriptions are pulled automatically from the Budget page. Record each item's advance and final payment amount and who paid it — totals per person are calculated below.</p>
+      <div class="cards" id="ledgerCards"></div>
+      <div class="table-scroll">
+        <table id="ledgerTable">
+          <thead>
+            <tr>
+              <th style="width:14%">Category</th>
+              <th style="width:22%">Description</th>
+              <th style="width:19%">Advance payment</th>
+              <th style="width:19%">Final payment</th>
+              <th class="num" style="width:12%">Total paid (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerBody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4">Total recorded payments</td>
+              <td class="num" id="ledgerGrandTotal">Rs. 0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="assumption">Add or remove line items from the Budget page — this ledger will automatically follow. "Joint" splits a payment 50/50 between both of you for the per-person totals above.</p>
+    </div>
+  </section>
+
+  <!-- FUNDING -->
+  <section class="view" id="view-funding">
+    <div class="panel">
+      <h2>Funding &amp; cash requirement</h2>
+      <p class="sub">What the wedding is estimated to cost, what's been pledged, and what's still needed from each side.</p>
+      <div class="cards" id="fundingCards"></div>
+      <div class="funding-grid" id="fundingPersonCards"></div>
+      <p class="assumption">Assumption: the remaining cash requirement is split evenly (50/50) between Groom and Bride unless you edit the pledged amounts below. "Spent so far" is pulled from the Payment Ledger.</p>
+    </div>
+  </section>
+
+  <!-- GUESTS - GROOM -->
+  <section class="view" id="view-guestsGroom">
+    <div class="panel">
+      <h2><span id="groomGuestTitle">Groom's</span> guest list</h2>
+      <p class="sub">Names, drink preference, and RSVP status for the groom's side.</p>
+      <div class="guest-summary" id="guestSummaryGroom"></div>
+      <div class="table-scroll">
+        <table id="guestTableGroom">
+          <thead>
+            <tr>
+              <th style="width:26%">Name</th>
+              <th style="width:20%">Notes</th>
+              <th style="width:16%">Drink</th>
+              <th style="width:16%">RSVP status</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="guestBodyGroom"></tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" data-side="groom">+ Add guest</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUESTS - BRIDE -->
+  <section class="view" id="view-guestsBride">
+    <div class="panel">
+      <h2><span id="brideGuestTitle">Bride's</span> guest list</h2>
+      <p class="sub">Names, drink preference, and RSVP status for the bride's side.</p>
+      <div class="guest-summary" id="guestSummaryBride"></div>
+      <div class="table-scroll">
+        <table id="guestTableBride">
+          <thead>
+            <tr>
+              <th style="width:26%">Name</th>
+              <th style="width:20%">Notes</th>
+              <th style="width:16%">Drink</th>
+              <th style="width:16%">RSVP status</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="guestBodyBride"></tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" data-side="bride">+ Add guest</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHECKLIST -->
+  <section class="view" id="view-checklist">
+    <div class="panel">
+      <h2>Wedding checklist</h2>
+      <p class="sub">Every task, grouped by stage. Tick items off as you complete them, edit wording, or add your own tasks and stages.</p>
+      <div class="cards" id="checklistCards"></div>
+      <div class="toolbar" style="margin-top:0; margin-bottom:16px;">
+        <input type="text" id="newChecklistSectionInput" placeholder="New stage name" style="max-width:220px; border:1px solid var(--line); background:var(--paper);">
+        <button class="btn primary" id="addChecklistSectionBtn">+ Add stage</button>
+      </div>
+      <div id="checklistBody"></div>
+    </div>
+  </section>
+
+  <!-- AGENDA -->
+  <section class="view" id="view-agenda">
+    <div class="panel">
+      <h2>Wedding day agenda</h2>
+      <p class="sub">The full run-of-show. Rename any item, adjust times, and add or remove rows as the plan changes.</p>
+      <div class="table-scroll">
+        <table id="agendaTable">
+          <thead>
+            <tr>
+              <th style="width:26%">Agenda item</th>
+              <th style="width:13%">Start time</th>
+              <th style="width:13%">End time</th>
+              <th style="width:20%">Responsible person</th>
+              <th style="width:22%">Remarks</th>
+              <th class="col-del"></th>
+            </tr>
+          </thead>
+          <tbody id="agendaBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" id="addAgendaRow">+ Add agenda item</button>
+      </div>
+      <datalist id="usernameSuggestions"></datalist>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <div class="panel">
+      <h2>Activity history</h2>
+      <p class="sub">A record of updates made across the app, newest first. Only visible to Super Admin, Bride, and Groom accounts.</p>
+      <div id="historyList"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">
+  <span id="footerStorageNote">Everything you type is saved automatically in this browser (no server, no upload).</span>
+  <span style="display:flex; gap:10px; align-items:center;">
+    <span class="sync-badge" id="syncBadge" style="display:none;"></span>
+    <span class="save-indicator" id="saveIndicator">Saved ✓</span>
+    <button class="btn ghost" id="exportBtn">Export backup (.json)</button>
+    <button class="btn ghost" id="importBtn">Import backup</button>
+    <button class="btn ghost" id="resetBtn">Reset to blank</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+  </span>
+</footer>
+
+<script>
+(function(){
+
+/* =====================================================================
+   CLOUD SYNC (OPTIONAL) — fill this in to make data shared/live across
+   every device that opens this page, instead of staying on just one
+   browser. Leave it exactly as-is (with "YOUR_" placeholders) and the
+   app runs fine on this browser's local storage only, same as before.
+
+   How to get these six values: Firebase console (console.firebase.google.com)
+   → your project → gear icon → Project settings → "Your apps" → the
+   </> (web) icon → copy the firebaseConfig object it shows you.
+
+   You also need, one time, in that same console:
+   1) Build → Firestore Database → Create database → Start in test mode
+      (then tighten the rules — see README.md).
+   2) Build → Authentication → Sign-in method → enable "Anonymous".
+      (This is NOT the app's own login screen — it's a separate, invisible
+      technical login just so Firestore knows it's talking to this app.)
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+/* Which shared document holds the app's data. No need to change this. */
+const FIRESTORE_COLLECTION = 'weddingApp';
+const FIRESTORE_DOC = 'sharedState';
+
+const cloudSyncEnabled = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('YOUR_') !== 0;
+let cloudDocRef = null;
+let cloudReady = false; /* true once the first snapshot has been received */
+
+const STORAGE_KEY = 'weddingBudgetDashboard_v2';
+const OLD_STORAGE_KEY = 'weddingBudgetDashboard_v1';
+const DEFAULT_CATEGORIES = ["Venue & Catering","Décor & Ambience","Bride & Groom","Ceremony & Entertainment","Media & Keepsakes","Gifts & Logistics","Other"];
+
+const DEFAULT_CHECKLIST = [
+  ["1. Registration", [
+    "Decide the type of registration (Civil / Church / Kovil / Poruwa)",
+    "Book Registrar / Pastor / Father (confirm date, time, venue)",
+    "NIC / Passport for both parties and witnesses",
+    "Birth certificates for both parties",
+    "Divorce / widowhood documents (if applicable)",
+    "Name-change affidavit / gazette (if applicable)",
+    "Prepare witnesses' names, NIC and signatures",
+    "Settle registration / church / temple fee",
+    "Check registration table, pen, photo/video space"
+  ]],
+  ["2. Wedding invitation", [
+    "Finalize guest list (family, friends, office, overseas guests)",
+    "Choose invitation design (theme, colors, Sinhala/English/Tamil text)",
+    "Include location, Poruwa time, reception time, dress code on the card",
+    "Review and approve proof with printer/designer",
+    "Prepare envelopes and name labels/printing",
+    "Decide on and order separate homecoming invitation cards",
+    "Send e-card / PDF invitation by email or WhatsApp to guests abroad"
+  ]],
+  ["3. Nekath (auspicious times)", [
+    "Consult an astrologer for auspicious times",
+    "Decide Poruwa, registration, homecoming and going-away times",
+    "Check hall, registrar, band, photographer and videographer availability against those times",
+    "Share the nekath schedule with the wedding planner, photographer, videographer, hall manager, music coordinator and kapumahataya"
+  ]],
+  ["4. Photography", [
+    "Choose a photographer (portfolio, recommendations, price)",
+    "Decide the package (pre-shoot, full day, albums, framed photos, soft copies)",
+    "Complete contract / quotation / advance payment",
+    "Prepare a must-have shots list (family, friends, office groups, detail shots)",
+    "Share the day's timeline with the photographer",
+    "Plan pre-shoot location, costume, props and concept (if applicable)"
+  ]],
+  ["5. Videography", [
+    "Choose a videographer / video team (cinematic or traditional style)",
+    "Decide the package (full day, highlights, trailer, drone footage)",
+    "Verify hall/area permissions if using a drone",
+    "Confirm contract, advance and delivery timeframes",
+    "Clarify final delivery format (USB, online link, raw files)"
+  ]],
+  ["6. Wedding hall", [
+    "Check hall capacity against expected guest count",
+    "Block/reserve the date & time and pay advance",
+    "Decide the menu (Buddhist, halal, special requirements)",
+    "Arrange a menu tasting and confirm the selected menu",
+    "Check corkage policy (wine/spirits) and soft drinks arrangement",
+    "Get details on what decor is included (stage, poruwa, entrance, table decor, oil lamp)",
+    "Check power backup/generator, parking and security facilities",
+    "Check bridal changing room, restroom and washroom quality",
+    "Clarify time limit and overtime charges",
+    "Note the payment schedule (advance, 2nd payment, final payment)"
+  ]],
+  ["7. Bridal salon", [
+    "Choose a bridal salon & stylist (after a trial makeup)",
+    "Discuss the bridal package (Poruwa, going away, homecoming) and bridesmaids' options",
+    "Book trial makeup & hair date/time",
+    "Schedule skin care, facials and hair treatments",
+    "Confirm wedding-day appointment times (bride, bridesmaids, mother)",
+    "Clarify payment terms, advance and cancellation policy"
+  ]],
+  ["8. Bride dressing", [
+    "Check the main bridal dress is ready (Kandyan / white gown / lehenga)",
+    "Prepare blouse, petticoat, inner wear, body shaper",
+    "Check shoes/sandals fit",
+    "Match jewelry set (necklace, earrings, bangles, rings)",
+    "Hair accessories (headpiece, tikka, pins, flowers)",
+    "Bridal bouquet + extra bouquet (for throwing)",
+    "Veil / dupatta / shawl",
+    "Small handbag/purse (phone, lipstick, tissues)",
+    "Emergency kit (safety pins, needle & thread, plaster, painkiller, wet wipes)"
+  ]],
+  ["9. Groom dressing", [
+    "Choose suit / Nilame dress / Sherwani / national dress",
+    "Shirt(s), extra shirt (if needed)",
+    "Tie / bow tie / shawl / pocket square",
+    "Shoes & socks, belt",
+    "Watch, cufflinks, tie pin",
+    "Boutonnière (coat flower)",
+    "Hair styling, shaving kit, perfume"
+  ]],
+  ["10. Jewelry", [
+    "Finalize bridal main jewelry set, wedding rings, going-away set",
+    "Jewelry box/pouch",
+    "Decide who is responsible for jewelry on the day",
+    "Locker/safe arrangement (before & after the function)"
+  ]],
+  ["11. Traditional dance (Wes Natum)", [
+    "Book Wes dance / Kandyan dance group",
+    "Decide items for entrance, poruwa and going away",
+    "Confirm rehearsal/arrival time",
+    "Note costume charges, transport and payment details"
+  ]],
+  ["12. Music", [
+    "Choose band / DJ / live music group",
+    "Check package time and overtime charges",
+    "Choose entrance song, first dance song, cake-cutting song, going-away song",
+    "Prepare a \"do not play\" list for the band/DJ",
+    "Coordinate mic arrangement for speeches/announcements with hall & music team",
+    "First dance rehearsal (if choreographed)"
+  ]],
+  ["13. Dancing group", [
+    "Book a modern dance group / kids dance group (if needed)",
+    "Decide number of items, timeslots and cost",
+    "Finalize costumes, rehearsal dates, music tracks"
+  ]],
+  ["14. Decorations", [
+    "Choose wedding theme & color palette",
+    "Hall decor — stage, backdrop, table centerpieces",
+    "Entrance decor — arch, welcome board, flower stands",
+    "Poruwa decor — flowers, drapes, lighting",
+    "Oil lamp decor",
+    "Cake table & champagne fountain decor",
+    "Gift (Sashreeka) table decor",
+    "Prepare seating plan, table numbers, name cards",
+    "Car decor (ribbons, flowers, number board)",
+    "Home/front-yard decor (if needed)"
+  ]],
+  ["15. Oil lamp", [
+    "Arrange the oil lamp (at the hall or separately)",
+    "Lamp decor — flowers, cloth, base decor",
+    "Check oil & wicks",
+    "Matches/lighter",
+    "Prepare the lamp-lighting order list"
+  ]],
+  ["16. Champagne fountain / champagne", [
+    "Check if a fountain unit is provided by the hall",
+    "Decide quantity of champagne or non-alcoholic sparkling juice",
+    "Arrange glasses needed for the glass tower",
+    "Prepare opener, napkins, tray",
+    "Share the moment's timing with band/MC"
+  ]],
+  ["17. Tea table", [
+    "Decide the menu — kiribath, kavum, kokis, aluwa, pani walalu, fruits, cake, etc.",
+    "Book supplier/catering service and confirm the order",
+    "Arrange trays, cake stands, warmers",
+    "Prepare plates, forks/spoons, serviettes",
+    "Table cloth, runner, small decor items (flowers, candles)"
+  ]],
+  ["18. Poruwa ceremony", [
+    "Confirm who will perform Ashtaka & Jayamangala Gatha",
+    "Poruwa items: betel leaves, kiribath, fruits, coins, tray, water pot, ashtaka book, etc.",
+    "Prepare rings tray & cushion",
+    "Prepare parents' gifts / ekada seelaya",
+    "Share Poruwa time with MC, photographer, videographer, band"
+  ]],
+  ["19. Wedding cake", [
+    "Choose cake designer/hotel cake service",
+    "Finalize design & flavors",
+    "Decide dummy vs real cake layers",
+    "Count cake pieces (boxes) and place order",
+    "Print cake boxes, ribbons, stickers",
+    "Prepare cake stand & knife decor",
+    "Confirm cake delivery & setup time",
+    "Prepare the cake distribution plan"
+  ]],
+  ["20. Wedding cars", [
+    "Book the main bridal car",
+    "Arrange parents'/close family cars",
+    "Pre-plan drivers, fuel, parking, routes",
+    "Car decor (flowers, ribbons, number board)",
+    "Finalize time schedule — salon → photo location → church/temple → hall → home",
+    "Prepare rainy-weather backup (umbrellas, covers)"
+  ]],
+  ["21. Going away dressing", [
+    "Finalize bride's going-away dress/saree/gown",
+    "Finalize groom's going-away outfit",
+    "Prepare shoes, jewelry, bouquet",
+    "Coordinate going-away song & moment with band/MC",
+    "Arrange confetti/petals/bubbles/sparklers"
+  ]],
+  ["22. Honeymoon", [
+    "Choose honeymoon location & dates",
+    "Confirm hotel/resort bookings",
+    "Arrange travel tickets (air/bus/train) & transfers",
+    "Complete leave approvals from office / visa (if abroad)",
+    "Packing list — clothes, swimwear, shoes, medicines, chargers, camera, etc.",
+    "Important documents — NIC/Passport, booking confirmations, cards/cash"
+  ]]
+];
+
+function uid(){ return 'r' + Math.random().toString(36).slice(2,10); }
+
+/* Lightweight client-side hash so passwords aren't stored as plain text.
+   NOTE: this is NOT real security — anyone with access to this file/browser
+   storage can read state.users directly. It only stops a password from being
+   trivially visible at a glance. */
+function simpleHash(str){
+  str = String(str);
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(let i=0;i<str.length;i++){
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1>>>0)).toString(36);
+}
+
+function buildDefaultChecklist(){
+  const sections = [];
+  const items = [];
+  DEFAULT_CHECKLIST.forEach(([section, texts])=>{
+    sections.push(section);
+    texts.forEach(text=> items.push({id:uid(), section, text, done:false}));
+  });
+  return { sections, items };
+}
+
+/* [item, startTime, endTime, responsible person, remarks] */
+const DEFAULT_AGENDA = [
+  ["Bride & Groom Leave from Home", "06:10 am", "", "", ""],
+  ["Bride Start Dressing", "09:00 am", "01:00 pm", "Mr Suranga (0771101650)", ""],
+  ["Getting Ready Shoot", "11:30 am", "12:30 pm", "Kalana (0765490320)", ""],
+  ["Thalla Paladima", "11:46 am", "", "", "Direction - North"],
+  ["Groom & Team Start Dressing", "11:46 am", "", "", ""],
+  ["Bride Leave from Salon", "01:00 pm", "", "", ""],
+  ["Full Group Arrive to Photo Location", "02:00 pm", "", "", "Waters Edge"],
+  ["First Look", "02:00 pm", "02:15 pm", "", ""],
+  ["Photo Session", "02:15 pm", "04:30 pm", "", ""],
+  ["Refreshment for Couple & Group", "04:30 pm", "04:45 pm", "", ""],
+  ["Parents to Be Ready at the Entrance", "04:45 pm", "", "", ""],
+  ["Groom Side Entry", "04:50 pm", "", "", ""],
+  ["Bride Side Entry", "05:05 pm", "", "", ""],
+  ["Poruwa Function", "05:22 pm", "05:58 pm", "", "Outdoor Area"],
+  ["Shashrika Table", "06:10 pm", "", "", ""],
+  ["Milk Fountain", "06:15 pm", "", "", ""],
+  ["Refreshment", "06:20 pm", "06:40 pm", "", ""],
+  ["Registration", "06:46 pm", "", "", "Outdoor Area"],
+  ["Guests Entering to The Hall", "06:55 pm", "", "", ""],
+  ["Couple & Group Entry to The Hall", "07:00 pm", "", "", "Jayamangala Music (Track)"],
+  ["Oil Lamp", "07:05 pm", "", "", "Music"],
+  ["Couple Going to Seat", "07:10 pm", "", "", ""],
+  ["Welcome Drinks Serve for Couple", "07:10 pm", "", "", ""],
+  ["Couple Photo with Family", "07:15 pm", "07:25 pm", "", ""],
+  ["Couple Photo with Guests", "07:25 pm", "08:20 pm", "", ""],
+  ["Bar Open", "07:45 pm", "10:00 pm", "", "Wine & Liquor Tray Service"],
+  ["Speech 01", "08:00 pm", "", "Mr. Athelio", ""],
+  ["Speech 02", "08:05 pm", "", "Mr. Sampath", ""],
+  ["Speech 03", "08:10 pm", "", "Friend", ""],
+  ["First Dance", "08:20 pm", "", "", ""],
+  ["Buffet Open", "08:30 pm", "10:30 pm", "", ""],
+  ["Pre Shoot", "08:40 pm", "", "", "LED Wall"],
+  ["Going Away Change", "09:00 pm", "10:00 pm", "", ""],
+  ["Going Away Shoot", "10:00 pm", "10:20 pm", "", ""],
+  ["Going Away Welcome", "10:30 pm", "", "", ""],
+  ["Cake Cutting", "10:30 pm", "", "", ""],
+  ["Champagne Fountain", "10:35 pm", "", "", ""],
+  ["Surprise Dance", "10:40 pm", "", "", ""],
+  ["Dancing Floor Open", "10:45 pm", "11:00 pm", "", "Band Final Session"],
+  ["Thank You Speech", "11:00 pm", "", "", ""],
+  ["Grand Exit", "11:10 pm", "", "", "Fireworks, Band Session"]
+];
+function buildDefaultAgenda(){
+  return DEFAULT_AGENDA.map(([item,startTime,endTime,person,remarks])=>(
+    {id:uid(), item, startTime, endTime, person:"", remarks:""}
+  ));
+}
+
+function defaultState(){
+  const budgetSeed = [
+    ["Venue & Catering","Venue"],
+    ["Venue & Catering","Hotel refundable deposit"],
+    ["Venue & Catering","PP plate"],
+    ["Venue & Catering","Chicken — per kg"],
+    ["Venue & Catering","Wedding mixture (David) — 1kg"],
+    ["Venue & Catering","Cashew — 1kg"],
+    ["Venue & Catering","Wine"],
+    ["Venue & Catering","Corkage"],
+    ["Venue & Catering","Soft drinks"],
+    ["Décor & Ambience","Decor, poruwa & bera"],
+    ["Décor & Ambience","Tiffany chairs"],
+    ["Décor & Ambience","Champagne fountain / kiri kala"],
+    ["Décor & Ambience","Cake structure"],
+    ["Décor & Ambience","Wedding cake pieces"],
+    ["Décor & Ambience","Wedding cake pieces box"],
+    ["Bride & Groom","Bride makeup & bouquet"],
+    ["Bride & Groom","Bride saree & shoes"],
+    ["Bride & Groom","Groom suit"],
+    ["Bride & Groom","Gold"],
+    ["Bride & Groom","Groom hair & makeup"],
+    ["Bride & Groom","Groom shoes & belt"],
+    ["Ceremony & Entertainment","DJ"],
+    ["Ceremony & Entertainment","Saxophone player"],
+    ["Ceremony & Entertainment","Jayamangala gatha girls"],
+    ["Ceremony & Entertainment","Registration"],
+    ["Ceremony & Entertainment","Nila kuru (20 units)"],
+    ["Media & Keepsakes","Photography & videography"],
+    ["Media & Keepsakes","Invitation cards"],
+    ["Gifts & Logistics","Relatives' gifts"],
+    ["Gifts & Logistics","Transport"],
+    ["Gifts & Logistics","Honeymoon"]
+  ];
+  const checklistData = buildDefaultChecklist();
+  return {
+    meta:{ groom:"Pesala", bride:"Nisuri", venue:"Water's Edge — Eagle Banquet Hall", date:"2026-11-27" },
+    categories: DEFAULT_CATEGORIES.slice(),
+    budget: budgetSeed.map(([category,description])=>({id:uid(),category,description,estCount:1,estUnitCost:0,actCount:0,actUnitCost:0})),
+    payments: {},
+    funding: [
+      {id:uid(),person:"Nisuri",pledged:2500000},
+      {id:uid(),person:"Pesala",pledged:2500000}
+    ],
+    guests:{
+      groom:[{id:uid(),name:"e.g. Kasun Perera",notes:"Colleague",drink:"Whisky",status:"pending"}],
+      bride:[{id:uid(),name:"e.g. Amaya Silva",notes:"Cousin",drink:"Wine",status:"confirmed"}]
+    },
+    checklistSections: checklistData.sections,
+    checklist: checklistData.items,
+    agenda: buildDefaultAgenda(),
+    agendaClearedV1: true,
+    users: [
+      { id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }
+    ],
+    history: []
+  };
+}
+
+function migrateFromV1(v1){
+  const budget = (v1.estimate||[]).map(e=>({
+    id:e.id, category:e.category, description:e.description,
+    estCount:Number(e.count)||0, estUnitCost:Number(e.unitCost)||0, actCount:0, actUnitCost:0
+  }));
+  const payments = {};
+  (v1.actual||[]).forEach(a=>{
+    const amt = Number(a.amount)||0;
+    let target = budget.find(b => b.description.trim().toLowerCase()===(a.description||'').trim().toLowerCase() && b.actCount===0 && b.actUnitCost===0);
+    if(!target){
+      target = {id:a.id, category:a.category || "Other", description:a.description, estCount:0, estUnitCost:0, actCount:0, actUnitCost:0};
+      budget.push(target);
+    }
+    target.actCount = 1;
+    target.actUnitCost = amt;
+    if(a.paidBy){
+      payments[target.id] = { advAmount:0, advPaidBy:"", finAmount:amt, finPaidBy:a.paidBy };
+    }
+  });
+  const categories = DEFAULT_CATEGORIES.slice();
+  budget.forEach(b=>{ if(b.category && !categories.includes(b.category)) categories.push(b.category); });
+  const checklistData = buildDefaultChecklist();
+  return { meta:v1.meta, categories, budget, payments, funding:v1.funding||[], guests:v1.guests||{groom:[],bride:[]}, checklistSections: checklistData.sections, checklist: checklistData.items, agenda: buildDefaultAgenda(), agendaClearedV1: true,
+    users: [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }],
+    history: []
+  };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.budget && parsed.guests){
+        if(!parsed.categories || !parsed.categories.length) parsed.categories = DEFAULT_CATEGORIES.slice();
+        parsed.budget.forEach(b=>{ if(b.category && !parsed.categories.includes(b.category)) parsed.categories.push(b.category); });
+        if(!parsed.checklist || !parsed.checklistSections || !parsed.checklistSections.length){
+          const cd = buildDefaultChecklist();
+          parsed.checklist = parsed.checklist || cd.items;
+          parsed.checklistSections = parsed.checklistSections && parsed.checklistSections.length ? parsed.checklistSections : cd.sections;
+        }
+        if(!parsed.agenda || !parsed.agenda.length) parsed.agenda = buildDefaultAgenda();
+        if(!parsed.agendaClearedV1){
+          parsed.agenda.forEach(row=>{ row.person = ""; row.remarks = ""; });
+          parsed.agendaClearedV1 = true;
+        }
+        if(!parsed.users || !parsed.users.length){
+          parsed.users = [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }];
+        }
+        if(!parsed.history) parsed.history = [];
+        return parsed;
+      }
+    }
+    const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+    if(oldRaw){
+      const oldParsed = JSON.parse(oldRaw);
+      if(oldParsed && oldParsed.estimate && oldParsed.actual){
+        return migrateFromV1(oldParsed);
+      }
+    }
+  }catch(e){}
+  return defaultState();
+}
+
+let state = loadState();
+let saveTimer = null;
+let cloudPushTimer = null;
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const ind = document.getElementById('saveIndicator');
+  ind.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>ind.classList.remove('show'), 900);
+
+  if(cloudSyncEnabled && cloudDocRef){
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = setTimeout(pushStateToCloud, 700);
+  }
+}
+function pushStateToCloud(){
+  if(!cloudDocRef) return;
+  cloudDocRef.set(JSON.parse(JSON.stringify(state))).catch(err=>{
+    console.error('Cloud sync: failed to save.', err);
+  });
+}
+
+/* ---------------- cloud sync: receiving remote changes ----------------
+   A remote snapshot is never applied while the person is mid-typing in a
+   field (that would yank their cursor / overwrite what they're entering,
+   the same problem fixed earlier for numeric fields). Instead it's held
+   until the field they're in loses focus, then applied. */
+let pendingRemoteState = null;
+function isCurrentlyEditingAField(){
+  const el = document.activeElement;
+  if(!el) return false;
+  return el.tagName==='INPUT' || el.tagName==='SELECT' || el.tagName==='TEXTAREA' || el.isContentEditable;
+}
+function applyPendingRemoteStateIfSafe(){
+  if(!pendingRemoteState) return;
+  if(isCurrentlyEditingAField()) return; /* try again after the field loses focus */
+  state = pendingRemoteState;
+  pendingRemoteState = null;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if(!currentUser) return; /* nothing logged in on this device yet — the login screen doesn't show data anyway */
+  if(!findUserByName(currentUser.username)){
+    doLogout();
+  } else {
+    renderAll();
+    applyRoleUI();
+  }
+}
+document.addEventListener('focusout', ()=>{ setTimeout(applyPendingRemoteStateIfSafe, 60); });
+
+function setSyncBadge(mode, text){
+  const el = document.getElementById('syncBadge');
+  if(!el) return;
+  el.style.display = '';
+  el.className = 'sync-badge ' + mode;
+  el.textContent = text;
+}
+function initCloudSync(){
+  if(!cloudSyncEnabled) return;
+  document.getElementById('footerStorageNote').textContent =
+    "Saved to a shared cloud database — your changes appear for everyone else too.";
+  setSyncBadge('connecting', 'Connecting…');
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    firebase.auth().onAuthStateChanged(user=>{
+      if(user && !cloudDocRef) attachCloudListener();
+    });
+    firebase.auth().signInAnonymously().catch(err=>{
+      console.error('Cloud sync: anonymous sign-in failed. Check that Anonymous auth is enabled in the Firebase console.', err);
+      setSyncBadge('error', 'Sync error — saving locally only');
+    });
+  }catch(err){
+    console.error('Cloud sync: could not start.', err);
+    setSyncBadge('error', 'Sync error — saving locally only');
+  }
+}
+function attachCloudListener(){
+  const db = firebase.firestore();
+  cloudDocRef = db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC);
+  cloudDocRef.onSnapshot(snap=>{
+    if(!snap.exists){
+      /* nothing in the cloud yet — seed it from whatever is on this device right now */
+      if(!cloudReady){ pushStateToCloud(); }
+      cloudReady = true;
+      setSyncBadge('live', 'Live — synced across devices');
+      return;
+    }
+    const remote = snap.data();
+    const remoteJSON = JSON.stringify(remote);
+    cloudReady = true;
+    setSyncBadge('live', 'Live — synced across devices');
+    if(remoteJSON === JSON.stringify(state)){
+      return; /* this is just our own write echoing back — nothing new */
+    }
+    pendingRemoteState = remote;
+    applyPendingRemoteStateIfSafe();
+  }, err=>{
+    console.error('Cloud sync: lost connection to the shared data.', err);
+    setSyncBadge('error', 'Sync error — saving locally only');
+  });
+}
+
+function money(n){
+  n = Number(n)||0;
+  return "Rs. " + Math.round(n).toLocaleString('en-US');
+}
+function escapeAttr(s){
+  return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function getPayment(id){
+  return state.payments[id] || { advAmount:0, advPaidBy:"", finAmount:0, finPaidBy:"" };
+}
+
+/* ================= AUTH / ROLES / HISTORY ================= */
+const SESSION_KEY = 'weddingAppSession_v1';
+let currentUser = null; /* {id, username, role} of the signed-in user, or null */
+
+function findUserByName(username){
+  return state.users.find(u=>u.username.toLowerCase() === String(username||'').toLowerCase());
+}
+function isPrivileged(){
+  return !!currentUser && (currentUser.role==='superadmin' || currentUser.role==='bride' || currentUser.role==='groom');
+}
+function isTaskUser(){
+  return !!currentUser && currentUser.role==='task';
+}
+function roleLabel(role){
+  return { superadmin:'Super Admin', bride:'Bride', groom:'Groom', task:'Task Access' }[role] || role;
+}
+
+function logHistory(action){
+  if(!currentUser) return;
+  state.history.push({ id:uid(), ts:Date.now(), user:currentUser.username, role:currentUser.role, action });
+  if(state.history.length > 500) state.history = state.history.slice(state.history.length - 500);
+}
+
+function blankNoticeHTML(message){
+  return `<div class="blank-notice">${escapeAttr(message)}</div>`;
+}
+
+function populateUsernameDatalist(){
+  const dl = document.getElementById('usernameSuggestions');
+  if(dl) dl.innerHTML = state.users.map(u=>`<option value="${escapeAttr(u.username)}">`).join('');
+}
+
+/* Renders the profile widget and shows/hides role-restricted UI (History tab,
+   Manage Users menu item). Re-run after login, logout, or a user/role change. */
+function applyRoleUI(){
+  const historyBtn = document.getElementById('historyTabBtn');
+  const manageBtn = document.getElementById('openManageUsers');
+  if(!currentUser){
+    historyBtn.style.display = 'none';
+    manageBtn.style.display = 'none';
+    return;
+  }
+  historyBtn.style.display = isPrivileged() ? '' : 'none';
+  manageBtn.style.display = isPrivileged() ? '' : 'none';
+  // if a task user was on a now-hidden tab (History), fall back to Overview
+  if(!isPrivileged() && document.getElementById('view-history').classList.contains('active')){
+    document.querySelector('.tab-btn[data-view="overview"]').click();
+  }
+  document.getElementById('profileBtn').textContent = currentUser.username.slice(0,1).toUpperCase();
+  document.getElementById('profileMenuName').textContent = currentUser.username;
+  document.getElementById('profileMenuRole').textContent = roleLabel(currentUser.role);
+  populateUsernameDatalist();
+}
+
+function revalidateSessionAfterImport(){
+  if(currentUser && !findUserByName(currentUser.username)){
+    doLogout();
+  } else {
+    applyRoleUI();
+  }
+}
+
+function showLogin(message){
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('loginError').textContent = message || '';
+  document.getElementById('profileMenu').classList.remove('open');
+}
+function hideLogin(){
+  document.getElementById('loginOverlay').style.display = 'none';
+}
+
+function doLogin(username, password){
+  const user = findUserByName(username);
+  if(!user || user.passwordHash !== simpleHash(password)){
+    showLogin('Incorrect username or password.');
+    return false;
+  }
+  currentUser = { id:user.id, username:user.username, role:user.role };
+  try{ localStorage.setItem(SESSION_KEY, user.username); }catch(e){}
+  hideLogin();
+  applyRoleUI();
+  renderAll();
+  return true;
+}
+function doLogout(){
+  currentUser = null;
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+  document.getElementById('profileMenu').classList.remove('open');
+  showLogin('');
+}
+
+function attemptAutoLogin(){
+  let savedUsername = null;
+  try{ savedUsername = localStorage.getItem(SESSION_KEY); }catch(e){}
+  const user = savedUsername ? findUserByName(savedUsername) : null;
+  if(user){
+    currentUser = { id:user.id, username:user.username, role:user.role };
+    hideLogin();
+    applyRoleUI();
+    renderAll();
+    return true;
+  }
+  showLogin('');
+  return false;
+}
+
+/* ---------------- generic change-tracking for history log ----------------
+   Text/number/date inputs log on blur (comparing to the value at focus time)
+   rather than every keystroke, so the log reads as discrete edits. */
+const FIELD_LABELS = {
+  description:'description', estCount:'estimate count', estUnitCost:'estimate cost/unit',
+  actCount:'actual count', actUnitCost:'actual cost/unit', startTime:'start time', endTime:'end time',
+  person:'responsible person', remarks:'remarks', item:'agenda item name',
+  name:'name', notes:'notes', text:'task text', advAmount:'advance amount', finAmount:'final amount',
+  pledged:'pledged amount', venue:'venue', date:'wedding date'
+};
+function rowLabelFor(el){
+  const tr = el.closest('tr'); const li = el.closest('li');
+  const row = tr || li;
+  if(!row) return '';
+  const idInput = row.querySelector('input[data-field="description"], input[data-field="item"], input[data-field="name"], input[data-field="text"]');
+  if(idInput && idInput !== el) return idInput.value ? ` on "${idInput.value}"` : '';
+  if(idInput === el) return '';
+  return '';
+}
+function sectionLabelFor(el){
+  if(el.closest('#budgetBody')) return 'Budget';
+  if(el.closest('#ledgerBody')) return 'Payment Ledger';
+  if(el.closest('#agendaBody')) return 'Agenda';
+  if(el.closest('#guestBodyGroom')) return "Groom's guests";
+  if(el.closest('#guestBodyBride')) return "Bride's guests";
+  if(el.closest('.checklist-items')) return 'Checklist';
+  if(el.closest('.person-card')) return 'Funding';
+  if(el.id === 'venueInput' || el.id === 'dateInput') return 'Header';
+  return '';
+}
+let fieldValueBeforeEdit = null;
+document.addEventListener('focusin', e=>{
+  const el = e.target;
+  if(el.matches && el.matches('input[type=text], input[type=number], input[type=date]')){
+    fieldValueBeforeEdit = el.value;
+  }
+});
+document.addEventListener('focusout', e=>{
+  const el = e.target;
+  if(!(el.matches && el.matches('input[type=text], input[type=number], input[type=date]'))) return;
+  if(fieldValueBeforeEdit === null) return;
+  if(el.value !== fieldValueBeforeEdit && el.dataset.field){
+    const label = FIELD_LABELS[el.dataset.field] || el.dataset.field;
+    const section = sectionLabelFor(el);
+    const rowLabel = rowLabelFor(el);
+    if(section){
+      logHistory(`Updated ${label}${rowLabel} in ${section}`);
+      saveState();
+    }
+  }
+  fieldValueBeforeEdit = null;
+});
+
+/* ---------------- render: meta ---------------- */
+function renderMeta(){
+  document.getElementById('groomNameDisplay').textContent = state.meta.groom || "Groom";
+  document.getElementById('brideNameDisplay').textContent = state.meta.bride || "Bride";
+  document.getElementById('venueInput').value = state.meta.venue || "";
+  document.getElementById('dateInput').value = state.meta.date || "";
+  document.getElementById('groomGuestTitle').textContent = (state.meta.groom || "Groom") + "'s";
+  document.getElementById('brideGuestTitle').textContent = (state.meta.bride || "Bride") + "'s";
+  document.querySelectorAll('button[data-side="groom"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.groom||"groom") + "'s list");
+  document.querySelectorAll('button[data-side="bride"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.bride||"bride") + "'s list");
+}
+
+/* ---------------- computed totals ---------------- */
+function totalEstimate(){
+  return state.budget.reduce((s,r)=> s + (Number(r.estCount)||0)*(Number(r.estUnitCost)||0), 0);
+}
+function totalActual(){
+  return state.budget.reduce((s,r)=> s + (Number(r.actCount)||0)*(Number(r.actUnitCost)||0), 0);
+}
+function totalPledged(){
+  return state.funding.reduce((s,r)=> s + (Number(r.pledged)||0), 0);
+}
+function totalLedger(){
+  return state.budget.reduce((s,r)=>{
+    const p = getPayment(r.id);
+    return s + (Number(p.advAmount)||0) + (Number(p.finAmount)||0);
+  }, 0);
+}
+function paidByPerson(personName){
+  let total = 0;
+  state.budget.forEach(r=>{
+    const p = getPayment(r.id);
+    const adv = Number(p.advAmount)||0, fin = Number(p.finAmount)||0;
+    if(p.advPaidBy === personName) total += adv;
+    else if(p.advPaidBy === "Joint") total += adv/2;
+    if(p.finPaidBy === personName) total += fin;
+    else if(p.finPaidBy === "Joint") total += fin/2;
+  });
+  return total;
+}
+function guestStats(list){
+  const stats = { total:list.length, confirmed:0, pending:0, not_coming:0, whisky:0, wine:0 };
+  list.forEach(g=>{
+    if(g.status==='confirmed') stats.confirmed++;
+    else if(g.status==='not_coming') stats.not_coming++;
+    else stats.pending++;
+    if(g.drink==='Whisky' || g.drink==='Both') stats.whisky++;
+    if(g.drink==='Wine' || g.drink==='Both') stats.wine++;
+  });
+  return stats;
+}
+
+/* ---------------- render: budget table (merged estimate + actual) ---------------- */
+function renderBudget(){
+  const toolbar = document.querySelector('#view-budget .toolbar');
+  if(isTaskUser()){
+    if(toolbar) toolbar.style.display = 'none';
+    document.getElementById('budgetBody').innerHTML = `<tr><td colspan="9">${blankNoticeHTML("The budget isn't available for your account.")}</td></tr>`;
+    document.getElementById('estimateGrandTotal').textContent = '—';
+    document.getElementById('actualGrandTotal').textContent = '—';
+    return;
+  }
+  if(toolbar) toolbar.style.display = '';
+  const body = document.getElementById('budgetBody');
+  body.innerHTML = '';
+  const byCategory = {};
+  state.categories.forEach(c=>byCategory[c]=[]);
+  state.budget.forEach(r=>{ (byCategory[r.category] || (byCategory[r.category]=[])).push(r); });
+
+  state.categories.forEach(cat=>{
+    const rows = byCategory[cat] || [];
+    let estSub = 0, actSub = 0;
+    rows.forEach(r=>{
+      const estTotal = (Number(r.estCount)||0)*(Number(r.estUnitCost)||0);
+      const actTotal = (Number(r.actCount)||0)*(Number(r.actUnitCost)||0);
+      estSub += estTotal; actSub += actTotal;
+      const tr = document.createElement('tr');
+      tr.dataset.id = r.id;
+      tr.innerHTML = `
+        <td>${categorySelectHTML(r.category)}</td>
+        <td><input type="text" data-field="description" value="${escapeAttr(r.description)}" placeholder="Item name"></td>
+        <td class="num"><input type="number" min="0" data-field="estCount" value="${r.estCount}"></td>
+        <td class="num"><input type="number" min="0" data-field="estUnitCost" value="${r.estUnitCost}"></td>
+        <td class="total-cell est-total">${money(estTotal)}</td>
+        <td class="num"><input type="number" min="0" data-field="actCount" value="${r.actCount}"></td>
+        <td class="num"><input type="number" min="0" data-field="actUnitCost" value="${r.actUnitCost}"></td>
+        <td class="total-cell act-total">${money(actTotal)}</td>
+        <td class="col-del"><button class="icon-btn" data-action="delete-budget">✕</button></td>
+      `;
+      body.appendChild(tr);
+    });
+    // always show the category group, even if empty, so "add item" is available
+    const addRow = document.createElement('tr');
+    addRow.className = 'add-row';
+    addRow.innerHTML = `<td colspan="9"><button class="btn small" data-action="add-to-category" data-category="${escapeAttr(cat)}">+ Add item to ${escapeAttr(cat)}</button></td>`;
+    body.appendChild(addRow);
+
+    const subRow = document.createElement('tr');
+    subRow.className = 'subtotal-row';
+    subRow.dataset.category = cat;
+    const removeBtn = rows.length===0 ? `<button class="icon-btn" data-action="delete-category" data-category="${escapeAttr(cat)}" title="Remove empty category">✕</button>` : '';
+    subRow.innerHTML = `<td colspan="4">${escapeAttr(cat)} subtotal (estimate)</td><td class="num sub-est">${money(estSub)}</td><td colspan="2">actual</td><td class="num sub-act">${money(actSub)}</td><td class="col-del">${removeBtn}</td>`;
+    body.appendChild(subRow);
+  });
+
+  document.getElementById('estimateGrandTotal').textContent = money(totalEstimate());
+  document.getElementById('actualGrandTotal').textContent = money(totalActual());
+}
+
+/* partial updates used while typing, so the input the user is editing is never destroyed/refocused */
+function updateBudgetRowTotals(id){
+  const row = state.budget.find(r=>r.id===id); if(!row) return;
+  const tr = document.querySelector(`#budgetBody tr[data-id="${id}"]`); if(!tr) return;
+  const estTotal = (Number(row.estCount)||0)*(Number(row.estUnitCost)||0);
+  const actTotal = (Number(row.actCount)||0)*(Number(row.actUnitCost)||0);
+  const estCell = tr.querySelector('.est-total');
+  const actCell = tr.querySelector('.act-total');
+  if(estCell) estCell.textContent = money(estTotal);
+  if(actCell) actCell.textContent = money(actTotal);
+}
+function updateBudgetCategoryTotals(category){
+  let estSub = 0, actSub = 0;
+  state.budget.forEach(r=>{
+    if(r.category===category){
+      estSub += (Number(r.estCount)||0)*(Number(r.estUnitCost)||0);
+      actSub += (Number(r.actCount)||0)*(Number(r.actUnitCost)||0);
+    }
+  });
+  document.querySelectorAll('#budgetBody tr.subtotal-row').forEach(tr=>{
+    if(tr.dataset.category === category){
+      const e = tr.querySelector('.sub-est');
+      const a = tr.querySelector('.sub-act');
+      if(e) e.textContent = money(estSub);
+      if(a) a.textContent = money(actSub);
+    }
+  });
+}
+function updateBudgetGrandTotals(){
+  document.getElementById('estimateGrandTotal').textContent = money(totalEstimate());
+  document.getElementById('actualGrandTotal').textContent = money(totalActual());
+}
+function updateLedgerDescriptionCell(id, description){
+  const tr = document.querySelector(`#ledgerBody tr[data-id="${id}"]`); if(!tr) return;
+  const cell = tr.querySelector('.readonly-desc');
+  if(cell) cell.textContent = description || '(untitled item)';
+}
+function categorySelectHTML(selected){
+  return `<select data-field="category">` + state.categories.map(c=>`<option value="${escapeAttr(c)}" ${c===selected?'selected':''}>${escapeAttr(c)}</option>`).join('') + `</select>`;
+}
+
+/* ---------------- render: payment ledger ---------------- */
+function personOptionsHTML(selected){
+  const groom = state.meta.groom || "Groom";
+  const bride = state.meta.bride || "Bride";
+  return `
+    <option value="" ${selected===''?'selected':''}>Who paid?</option>
+    <option value="${escapeAttr(groom)}" ${selected===groom?'selected':''}>${escapeAttr(groom)}</option>
+    <option value="${escapeAttr(bride)}" ${selected===bride?'selected':''}>${escapeAttr(bride)}</option>
+    <option value="Joint" ${selected==='Joint'?'selected':''}>Joint</option>
+  `;
+}
+function renderLedger(){
+  if(isTaskUser()){
+    document.getElementById('ledgerBody').innerHTML = `<tr><td colspan="5">${blankNoticeHTML("The payment ledger isn't available for your account.")}</td></tr>`;
+    document.getElementById('ledgerGrandTotal').textContent = '—';
+    document.getElementById('ledgerCards').innerHTML = '';
+    return;
+  }
+  const body = document.getElementById('ledgerBody');
+  body.innerHTML = '';
+  state.budget.forEach(r=>{
+    const p = getPayment(r.id);
+    const rowTotal = (Number(p.advAmount)||0) + (Number(p.finAmount)||0);
+    const tr = document.createElement('tr');
+    tr.dataset.id = r.id;
+    tr.innerHTML = `
+      <td class="cat-badge">${escapeAttr(r.category)}</td>
+      <td class="readonly-desc">${escapeAttr(r.description || '(untitled item)')}</td>
+      <td>
+        <div class="pay-cell">
+          <input type="number" min="0" data-field="advAmount" value="${p.advAmount||0}" placeholder="Advance amount">
+          <select data-field="advPaidBy">${personOptionsHTML(p.advPaidBy||'')}</select>
+        </div>
+      </td>
+      <td>
+        <div class="pay-cell">
+          <input type="number" min="0" data-field="finAmount" value="${p.finAmount||0}" placeholder="Final amount">
+          <select data-field="finPaidBy">${personOptionsHTML(p.finPaidBy||'')}</select>
+        </div>
+      </td>
+      <td class="total-cell">${money(rowTotal)}</td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('ledgerGrandTotal').textContent = money(totalLedger());
+  document.getElementById('ledgerCards').innerHTML = ledgerCardsHTML();
+}
+function ledgerCardsHTML(){
+  const groom = state.meta.groom || "Groom";
+  const bride = state.meta.bride || "Bride";
+  return `
+    <div class="card"><div class="label">${escapeAttr(groom)} paid so far</div><div class="value">${money(paidByPerson(groom))}</div></div>
+    <div class="card"><div class="label">${escapeAttr(bride)} paid so far</div><div class="value">${money(paidByPerson(bride))}</div></div>
+    <div class="card"><div class="label">Total recorded payments</div><div class="value">${money(totalLedger())}</div></div>
+  `;
+}
+/* partial updates used while typing */
+function updateLedgerRowTotal(id){
+  const tr = document.querySelector(`#ledgerBody tr[data-id="${id}"]`); if(!tr) return;
+  const p = getPayment(id);
+  const total = (Number(p.advAmount)||0) + (Number(p.finAmount)||0);
+  const cell = tr.querySelector('.total-cell');
+  if(cell) cell.textContent = money(total);
+}
+function updateLedgerGrandTotal(){
+  document.getElementById('ledgerGrandTotal').textContent = money(totalLedger());
+}
+function updateLedgerCards(){
+  document.getElementById('ledgerCards').innerHTML = ledgerCardsHTML();
+}
+
+/* ---------------- render: funding ---------------- */
+function renderFunding(){
+  renderFundingTopCards();
+  renderFundingPersonCards();
+}
+function renderFundingTopCards(){
+  if(isTaskUser()){
+    document.getElementById('fundingCards').innerHTML = '';
+    return;
+  }
+  const est = totalEstimate();
+  const pledged = totalPledged();
+  const cashReq = Math.max(est - pledged, 0);
+  const surplus = pledged > est ? pledged - est : 0;
+  const individualReq = cashReq / 2;
+
+  const cardsEl = document.getElementById('fundingCards');
+  cardsEl.innerHTML = `
+    <div class="card"><div class="label">Total estimate</div><div class="value">${money(est)}</div></div>
+    <div class="card"><div class="label">Total pledged funding</div><div class="value">${money(pledged)}</div></div>
+    <div class="card"><div class="label">Cash requirement</div><div class="value ${cashReq>0?'bad':'good'}">${money(cashReq)}</div>
+      ${surplus>0?`<div class="note">Surplus of ${money(surplus)} beyond estimate</div>`:''}
+    </div>
+    <div class="card"><div class="label">Per-person requirement</div><div class="value">${money(individualReq)}</div><div class="note">50/50 split</div></div>
+  `;
+}
+function renderFundingPersonCards(){
+  const personsEl = document.getElementById('fundingPersonCards');
+  if(isTaskUser()){
+    personsEl.innerHTML = blankNoticeHTML("Funding details aren't available for your account.");
+    return;
+  }
+  const cashReq = Math.max(totalEstimate() - totalPledged(), 0);
+  const individualReq = cashReq / 2;
+  personsEl.innerHTML = '';
+  state.funding.forEach(f=>{
+    const paid = paidByPerson(f.person);
+    const balance = (Number(f.pledged)||0) - paid;
+    const div = document.createElement('div');
+    div.className = 'person-card';
+    div.dataset.id = f.id;
+    div.innerHTML = `
+      <h3>${escapeAttr(f.person)}</h3>
+      <div class="row"><span>Pledged amount</span><input type="number" min="0" data-field="pledged" value="${f.pledged}"></div>
+      <div class="row"><span>Spent so far (Payment Ledger)</span><span class="ps-spent">${money(paid)}</span></div>
+      <div class="row"><span>Remaining of pledge</span><span class="ps-remaining" style="font-weight:600; color:${balance<0?'var(--bad)':'var(--good)'}">${money(balance)}</span></div>
+      <div class="row"><span>Share of cash requirement</span><span class="ps-share" style="font-weight:600;">${money(individualReq)}</span></div>
+    `;
+    personsEl.appendChild(div);
+  });
+}
+/* partial update used while typing in the pledged amount, so that input is never destroyed/refocused */
+function updateFundingPersonCardComputed(id){
+  const f = state.funding.find(x=>x.id===id); if(!f) return;
+  const card = document.querySelector(`.person-card[data-id="${id}"]`); if(!card) return;
+  const paid = paidByPerson(f.person);
+  const balance = (Number(f.pledged)||0) - paid;
+  const cashReq = Math.max(totalEstimate() - totalPledged(), 0);
+  const individualReq = cashReq / 2;
+  const spentEl = card.querySelector('.ps-spent');
+  const remEl = card.querySelector('.ps-remaining');
+  const shareEl = card.querySelector('.ps-share');
+  if(spentEl) spentEl.textContent = money(paid);
+  if(remEl){ remEl.textContent = money(balance); remEl.style.color = balance<0 ? 'var(--bad)' : 'var(--good)'; }
+  if(shareEl) shareEl.textContent = money(individualReq);
+}
+
+/* ---------------- render: guests ---------------- */
+function guestRowHTML(g){
+  return `
+    <tr data-id="${g.id}">
+      <td><input type="text" data-field="name" value="${escapeAttr(g.name)}" placeholder="Guest name"></td>
+      <td><input type="text" data-field="notes" value="${escapeAttr(g.notes)}" placeholder="e.g. Abroad, optional"></td>
+      <td>
+        <select data-field="drink">
+          <option value="" ${g.drink===''?'selected':''}>None</option>
+          <option value="Whisky" ${g.drink==='Whisky'?'selected':''}>Whisky</option>
+          <option value="Wine" ${g.drink==='Wine'?'selected':''}>Wine</option>
+          <option value="Both" ${g.drink==='Both'?'selected':''}>Both</option>
+        </select>
+      </td>
+      <td>
+        <select data-field="status" class="status-select status-${g.status}">
+          <option value="pending" ${g.status==='pending'?'selected':''}>Pending</option>
+          <option value="confirmed" ${g.status==='confirmed'?'selected':''}>Confirmed</option>
+          <option value="not_coming" ${g.status==='not_coming'?'selected':''}>Not coming</option>
+        </select>
+      </td>
+      <td class="col-del"><button class="icon-btn" data-action="delete-guest">✕</button></td>
+    </tr>
+  `;
+}
+function renderGuestSide(side){
+  const list = state.guests[side];
+  const body = document.getElementById(side==='groom' ? 'guestBodyGroom' : 'guestBodyBride');
+  body.innerHTML = list.map(guestRowHTML).join('');
+  const stats = guestStats(list);
+  const summaryEl = document.getElementById(side==='groom' ? 'guestSummaryGroom' : 'guestSummaryBride');
+  summaryEl.innerHTML = `
+    <div class="pill">Invited <b>${stats.total}</b></div>
+    <div class="pill">Confirmed <b>${stats.confirmed}</b></div>
+    <div class="pill">Pending <b>${stats.pending}</b></div>
+    <div class="pill">Not coming <b>${stats.not_coming}</b></div>
+    <div class="pill whisky">Whisky <b>${stats.whisky}</b></div>
+    <div class="pill wine">Wine <b>${stats.wine}</b></div>
+  `;
+}
+function renderGuests(){ renderGuestSide('groom'); renderGuestSide('bride'); }
+
+/* ---------------- render: checklist ---------------- */
+function checklistStats(){
+  const total = state.checklist.length;
+  const done = state.checklist.filter(i=>i.done).length;
+  return { total, done, remaining: total-done, pct: total>0 ? Math.round((done/total)*100) : 0 };
+}
+function renderChecklist(){
+  const container = document.getElementById('checklistBody');
+  container.innerHTML = '';
+  const bySection = {};
+  state.checklistSections.forEach(s=>bySection[s]=[]);
+  state.checklist.forEach(i=>{ (bySection[i.section] || (bySection[i.section]=[])).push(i); });
+
+  state.checklistSections.forEach(section=>{
+    const items = bySection[section] || [];
+    const doneCount = items.filter(i=>i.done).length;
+    const wrap = document.createElement('div');
+    wrap.className = 'checklist-section';
+    wrap.dataset.section = section;
+
+    const head = document.createElement('div');
+    head.className = 'checklist-section-head';
+    const removeBtn = items.length===0 ? `<button class="icon-btn" data-action="delete-checklist-section" data-section="${escapeAttr(section)}" title="Remove empty stage">✕</button>` : '';
+    head.innerHTML = `<h3>${escapeAttr(section)}</h3><span class="progress">${doneCount}/${items.length} done ${removeBtn}</span>`;
+    wrap.appendChild(head);
+
+    const list = document.createElement('ul');
+    list.className = 'checklist-items';
+    items.forEach(item=>{
+      const li = document.createElement('li');
+      li.className = 'checklist-item' + (item.done ? ' done' : '');
+      li.dataset.id = item.id;
+      li.innerHTML = `
+        <input type="checkbox" data-field="done" ${item.done ? 'checked' : ''}>
+        <input type="text" data-field="text" value="${escapeAttr(item.text)}" placeholder="Task">
+        <button class="icon-btn" data-action="delete-checklist-item">✕</button>
+      `;
+      list.appendChild(li);
+    });
+    wrap.appendChild(list);
+
+    const addRow = document.createElement('div');
+    addRow.className = 'checklist-add-row';
+    addRow.innerHTML = `<button class="btn small" data-action="add-checklist-item" data-section="${escapeAttr(section)}">+ Add task to ${escapeAttr(section)}</button>`;
+    wrap.appendChild(addRow);
+
+    container.appendChild(wrap);
+  });
+
+  const stats = checklistStats();
+  document.getElementById('checklistCards').innerHTML = `
+    <div class="card"><div class="label">Total tasks</div><div class="value">${stats.total}</div></div>
+    <div class="card"><div class="label">Completed</div><div class="value good">${stats.done}</div></div>
+    <div class="card"><div class="label">Remaining</div><div class="value ${stats.remaining>0?'bad':'good'}">${stats.remaining}</div></div>
+    <div class="card"><div class="label">Percent complete</div><div class="value">${stats.pct}%</div></div>
+  `;
+}
+/* partial update for a single checkbox toggle, avoids rebuilding the whole list */
+function updateChecklistItemDoneUI(id, done){
+  const li = document.querySelector(`#checklistBody li[data-id="${id}"]`); if(!li) return;
+  li.classList.toggle('done', done);
+  const section = li.closest('.checklist-section');
+  if(section){
+    const items = state.checklist.filter(i=>i.section===section.dataset.section);
+    const doneCount = items.filter(i=>i.done).length;
+    const progressEl = section.querySelector('.progress');
+    if(progressEl){
+      const removeBtnHTML = progressEl.querySelector('button') ? progressEl.querySelector('button').outerHTML : '';
+      progressEl.innerHTML = `${doneCount}/${items.length} done ${removeBtnHTML}`;
+    }
+  }
+  updateChecklistCards();
+}
+function updateChecklistCards(){
+  const stats = checklistStats();
+  document.getElementById('checklistCards').innerHTML = `
+    <div class="card"><div class="label">Total tasks</div><div class="value">${stats.total}</div></div>
+    <div class="card"><div class="label">Completed</div><div class="value good">${stats.done}</div></div>
+    <div class="card"><div class="label">Remaining</div><div class="value ${stats.remaining>0?'bad':'good'}">${stats.remaining}</div></div>
+    <div class="card"><div class="label">Percent complete</div><div class="value">${stats.pct}%</div></div>
+  `;
+}
+
+/* ---------------- render: agenda ---------------- */
+function renderAgenda(){
+  populateUsernameDatalist();
+  const body = document.getElementById('agendaBody');
+  body.innerHTML = '';
+  state.agenda.forEach(row=>{
+    const tr = document.createElement('tr');
+    tr.dataset.id = row.id;
+    tr.innerHTML = `
+      <td><input type="text" data-field="item" value="${escapeAttr(row.item)}" placeholder="Agenda item"></td>
+      <td><input type="text" data-field="startTime" value="${escapeAttr(row.startTime)}" placeholder="e.g. 06:10 am"></td>
+      <td><input type="text" data-field="endTime" value="${escapeAttr(row.endTime)}" placeholder="e.g. 07:00 am"></td>
+      <td><input type="text" data-field="person" value="${escapeAttr(row.person)}" placeholder="Responsible person" list="usernameSuggestions" autocomplete="off"></td>
+      <td><input type="text" data-field="remarks" value="${escapeAttr(row.remarks)}" placeholder="Remarks"></td>
+      <td class="col-del"><button class="icon-btn" data-action="delete-agenda-row">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+
+/* ---------------- render: overview ---------------- */
+function renderOverview(){
+  const est = totalEstimate();
+  const act = totalActual();
+  const pledged = totalPledged();
+  const variance = est - act;
+  const cashReq = Math.max(est - pledged, 0);
+  const pct = est>0 ? Math.min(Math.round((act/est)*100), 999) : 0;
+  const hide = isTaskUser();
+
+  document.getElementById('overviewCards').innerHTML = `
+    <div class="card"><div class="label">Total estimate</div><div class="value">${hide?'—':money(est)}</div></div>
+    <div class="card"><div class="label">Total actual spend</div><div class="value">${hide?'—':money(act)}</div></div>
+    <div class="card"><div class="label">Variance (estimate − actual)</div><div class="value ${hide?'':(variance<0?'bad':'good')}">${hide?'—':money(variance)}</div></div>
+    <div class="card"><div class="label">Cash requirement remaining</div><div class="value ${hide?'':(cashReq>0?'bad':'good')}">${hide?'—':money(cashReq)}</div></div>
+    <div class="card"><div class="label">Checklist progress</div><div class="value">${checklistStats().done}/${checklistStats().total}</div><div class="note">${checklistStats().pct}% complete</div></div>
+  `;
+
+  const gauge = document.getElementById('spendGauge');
+  const gaugeLbl = gauge.parentElement.querySelector('.lbl');
+  if(hide){
+    gauge.style.setProperty('--pct', 0);
+    document.getElementById('gaugePct').textContent = '🔒';
+    if(gaugeLbl) gaugeLbl.textContent = 'hidden for your account';
+  } else {
+    gauge.style.setProperty('--pct', Math.min(pct,100));
+    document.getElementById('gaugePct').textContent = pct + '%';
+    if(gaugeLbl) gaugeLbl.textContent = 'of estimate spent';
+  }
+
+  const gStats = guestStats(state.guests.groom);
+  const bStats = guestStats(state.guests.bride);
+  const combined = {
+    total:gStats.total+bStats.total, confirmed:gStats.confirmed+bStats.confirmed,
+    pending:gStats.pending+bStats.pending, not_coming:gStats.not_coming+bStats.not_coming,
+    whisky:gStats.whisky+bStats.whisky, wine:gStats.wine+bStats.wine
+  };
+  document.getElementById('guestSummaryList').innerHTML = `
+    <li><span class="tag">Total invited</span><span class="num">${combined.total}</span></li>
+    <li><span class="tag">Confirmed</span><span class="num">${combined.confirmed}</span></li>
+    <li><span class="tag">Pending response</span><span class="num">${combined.pending}</span></li>
+    <li><span class="tag">Not coming</span><span class="num">${combined.not_coming}</span></li>
+    <li><span class="tag">Whisky drinkers</span><span class="num">${combined.whisky}</span></li>
+    <li><span class="tag">Wine drinkers</span><span class="num">${combined.wine}</span></li>
+  `;
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  if(!isPrivileged()){ list.innerHTML = ''; return; }
+  if(!state.history.length){
+    list.innerHTML = '<p class="sub">No activity recorded yet.</p>';
+    return;
+  }
+  const entries = state.history.slice().reverse();
+  list.innerHTML = entries.map(h=>`
+    <div class="history-entry">
+      <span class="h-time">${new Date(h.ts).toLocaleString()}</span>
+      <span class="h-user">${escapeAttr(h.user)}</span>
+      <span class="h-action">${escapeAttr(h.action)}</span>
+    </div>
+  `).join('');
+}
+
+function renderAll(){
+  renderMeta();
+  renderBudget();
+  renderLedger();
+  renderFunding();
+  renderGuests();
+  renderChecklist();
+  renderAgenda();
+  renderOverview();
+  renderHistory();
+}
+
+/* ---------------- events: tabs ---------------- */
+document.getElementById('tabBar').addEventListener('click', e=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  if(btn.dataset.view === 'history') renderHistory();
+});
+
+/* ---------------- events: meta ---------------- */
+document.getElementById('venueInput').addEventListener('input', e=>{ state.meta.venue = e.target.value; saveState(); });
+document.getElementById('dateInput').addEventListener('input', e=>{ state.meta.date = e.target.value; saveState(); });
+
+/* renaming the bride/groom updates every place their name is stored as a value
+   (funding pledges, payment ledger "paid by" selections) so nothing goes orphaned */
+function cascadeRenamePerson(oldName, newName){
+  if(!oldName || oldName === newName) return;
+  state.funding.forEach(f=>{ if(f.person===oldName) f.person = newName; });
+  Object.keys(state.payments).forEach(id=>{
+    const p = state.payments[id];
+    if(p.advPaidBy===oldName) p.advPaidBy = newName;
+    if(p.finPaidBy===oldName) p.finPaidBy = newName;
+  });
+}
+function sanitizeNamePaste(e){
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, text);
+}
+
+const groomNameEl = document.getElementById('groomNameDisplay');
+const brideNameEl = document.getElementById('brideNameDisplay');
+let groomNameBeforeEdit = null, brideNameBeforeEdit = null;
+
+groomNameEl.addEventListener('focus', ()=>{ groomNameBeforeEdit = state.meta.groom; });
+brideNameEl.addEventListener('focus', ()=>{ brideNameBeforeEdit = state.meta.bride; });
+groomNameEl.addEventListener('paste', sanitizeNamePaste);
+brideNameEl.addEventListener('paste', sanitizeNamePaste);
+groomNameEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); groomNameEl.blur(); } });
+brideNameEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); brideNameEl.blur(); } });
+
+groomNameEl.addEventListener('blur', ()=>{
+  let newName = groomNameEl.textContent.replace(/\s+/g,' ').trim();
+  if(!newName) newName = groomNameBeforeEdit || 'Groom';
+  cascadeRenamePerson(groomNameBeforeEdit, newName);
+  if(groomNameBeforeEdit && groomNameBeforeEdit !== newName){
+    logHistory(`Renamed Groom from "${groomNameBeforeEdit}" to "${newName}"`);
+  }
+  state.meta.groom = newName;
+  groomNameEl.textContent = newName;
+  saveState();
+  renderMeta(); renderFunding(); renderLedger(); renderGuests(); renderOverview();
+});
+brideNameEl.addEventListener('blur', ()=>{
+  let newName = brideNameEl.textContent.replace(/\s+/g,' ').trim();
+  if(!newName) newName = brideNameBeforeEdit || 'Bride';
+  cascadeRenamePerson(brideNameBeforeEdit, newName);
+  if(brideNameBeforeEdit && brideNameBeforeEdit !== newName){
+    logHistory(`Renamed Bride from "${brideNameBeforeEdit}" to "${newName}"`);
+  }
+  state.meta.bride = newName;
+  brideNameEl.textContent = newName;
+  saveState();
+  renderMeta(); renderFunding(); renderLedger(); renderGuests(); renderOverview();
+});
+
+/* ---------------- events: budget table ---------------- */
+function refocusAfterRerender(rowId, field, bodyId){
+  requestAnimationFrame(()=>{
+    const el = document.querySelector(`#${bodyId} [data-id="${rowId}"] [data-field="${field}"]`) ||
+               document.querySelector(`#${bodyId} tr[data-id="${rowId}"] [data-field="${field}"]`);
+    if(el){
+      el.focus();
+      if(el.tagName === 'INPUT'){
+        if(el.type==='number'){ el.select(); }
+        else if(el.type==='text'){ const len = el.value.length; el.setSelectionRange(len,len); }
+      }
+    }
+  });
+}
+
+document.getElementById('budgetBody').addEventListener('input', e=>{
+  const tr = e.target.closest('tr'); if(!tr || !tr.dataset.id) return;
+  const row = state.budget.find(r=>r.id===tr.dataset.id); if(!row) return;
+  const field = e.target.dataset.field; if(!field) return;
+  const numericFields = ['estCount','estUnitCost','actCount','actUnitCost'];
+  if(numericFields.includes(field)){
+    row[field] = Number(e.target.value);
+    saveState();
+    updateBudgetRowTotals(row.id);
+    updateBudgetCategoryTotals(row.category);
+    updateBudgetGrandTotals();
+    renderOverview();
+    renderFunding();
+    return;
+  }
+  if(field === 'description'){
+    row.description = e.target.value;
+    saveState();
+    updateLedgerDescriptionCell(row.id, row.description);
+    return;
+  }
+});
+document.getElementById('budgetBody').addEventListener('change', e=>{
+  const tr = e.target.closest('tr'); if(!tr || !tr.dataset.id) return;
+  const row = state.budget.find(r=>r.id===tr.dataset.id); if(!row) return;
+  const field = e.target.dataset.field; if(!field) return;
+  if(field === 'category'){
+    row.category = e.target.value;
+    logHistory(`Moved "${row.description||'(untitled item)'}" to category ${row.category} in Budget`);
+    saveState(); renderBudget(); renderLedger();
+  }
+});
+document.getElementById('budgetBody').addEventListener('click', e=>{
+  if(e.target.dataset.action==='delete-budget'){
+    const tr = e.target.closest('tr');
+    const row = state.budget.find(r=>r.id===tr.dataset.id);
+    delete state.payments[tr.dataset.id];
+    state.budget = state.budget.filter(r=>r.id!==tr.dataset.id);
+    logHistory(`Deleted budget item "${row ? (row.description||'(untitled item)') : ''}"`);
+    saveState(); renderBudget(); renderLedger(); renderOverview(); renderFunding();
+  }
+  if(e.target.dataset.action==='add-to-category'){
+    const cat = e.target.dataset.category;
+    state.budget.push({id:uid(),category:cat,description:"",estCount:1,estUnitCost:0,actCount:0,actUnitCost:0});
+    logHistory(`Added a new item to category ${cat} in Budget`);
+    saveState(); renderBudget(); renderLedger(); renderOverview(); renderFunding();
+  }
+  if(e.target.dataset.action==='delete-category'){
+    const cat = e.target.dataset.category;
+    const stillUsed = state.budget.some(r=>r.category===cat);
+    if(!stillUsed){
+      state.categories = state.categories.filter(c=>c!==cat);
+      logHistory(`Removed category ${cat} from Budget`);
+      saveState(); renderBudget();
+    }
+  }
+});
+
+document.getElementById('addCategoryBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('newCategoryInput');
+  const name = input.value.trim();
+  if(!name) return;
+  const exists = state.categories.some(c=>c.toLowerCase()===name.toLowerCase());
+  if(exists){
+    alert('That category already exists.');
+    return;
+  }
+  state.categories.push(name);
+  logHistory(`Added category ${name} to Budget`);
+  saveState();
+  input.value = '';
+  renderBudget();
+});
+document.getElementById('newCategoryInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('addCategoryBtn').click();
+  }
+});
+
+/* ---------------- events: payment ledger ---------------- */
+document.getElementById('ledgerBody').addEventListener('input', e=>{
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const field = e.target.dataset.field; if(!field) return;
+  const id = tr.dataset.id;
+  if(!state.payments[id]) state.payments[id] = {advAmount:0, advPaidBy:"", finAmount:0, finPaidBy:""};
+  if(field==='advAmount' || field==='finAmount'){
+    state.payments[id][field] = Number(e.target.value);
+    saveState();
+    updateLedgerRowTotal(id);
+    updateLedgerGrandTotal();
+    updateLedgerCards();
+    renderFunding();
+  }
+});
+document.getElementById('ledgerBody').addEventListener('change', e=>{
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const field = e.target.dataset.field; if(!field) return;
+  const id = tr.dataset.id;
+  if(!state.payments[id]) state.payments[id] = {advAmount:0, advPaidBy:"", finAmount:0, finPaidBy:""};
+  if(field==='advPaidBy' || field==='finPaidBy'){
+    state.payments[id][field] = e.target.value;
+    const row = state.budget.find(r=>r.id===id);
+    const which = field==='advPaidBy' ? 'advance' : 'final';
+    logHistory(`Set ${which} payer to ${e.target.value||'(none)'} for "${row?(row.description||'(untitled item)'):''}" in Payment Ledger`);
+    saveState();
+    updateLedgerCards();
+    renderFunding();
+  }
+});
+
+/* ---------------- events: funding ---------------- */
+document.getElementById('fundingPersonCards').addEventListener('input', e=>{
+  const card = e.target.closest('.person-card'); if(!card) return;
+  const f = state.funding.find(x=>x.id===card.dataset.id); if(!f) return;
+  if(e.target.dataset.field==='pledged'){
+    f.pledged = Number(e.target.value);
+    saveState();
+    renderFundingTopCards();
+    updateFundingPersonCardComputed(f.id);
+    renderOverview();
+  }
+});
+
+/* ---------------- events: guests (delegated for both tables) ---------------- */
+function wireGuestTable(side, bodyId){
+  const body = document.getElementById(bodyId);
+  body.addEventListener('input', e=>{
+    const tr = e.target.closest('tr'); if(!tr) return;
+    const g = state.guests[side].find(x=>x.id===tr.dataset.id); if(!g) return;
+    const field = e.target.dataset.field; if(!field) return;
+    g[field] = e.target.value;
+    saveState();
+    if(field==='name' || field==='notes'){
+      renderGuestSide(side); renderOverview();
+      refocusAfterRerender(tr.dataset.id, field, bodyId);
+    } else {
+      renderGuestSide(side); renderOverview();
+    }
+  });
+  body.addEventListener('change', e=>{
+    const tr = e.target.closest('tr'); if(!tr) return;
+    const g = state.guests[side].find(x=>x.id===tr.dataset.id); if(!g) return;
+    const field = e.target.dataset.field; if(!field) return;
+    g[field] = e.target.value;
+    const fieldName = field==='drink' ? 'drink preference' : 'RSVP status';
+    logHistory(`Updated ${fieldName} for "${g.name||'(unnamed guest)'}" in ${side==='groom'?"Groom's":"Bride's"} guests`);
+    saveState(); renderGuestSide(side); renderOverview();
+  });
+  body.addEventListener('click', e=>{
+    if(e.target.dataset.action==='delete-guest'){
+      const tr = e.target.closest('tr');
+      const g = state.guests[side].find(x=>x.id===tr.dataset.id);
+      state.guests[side] = state.guests[side].filter(x=>x.id!==tr.dataset.id);
+      logHistory(`Removed guest "${g?(g.name||'(unnamed guest)'):''}" from ${side==='groom'?"Groom's":"Bride's"} guests`);
+      saveState(); renderGuestSide(side); renderOverview();
+    }
+  });
+}
+wireGuestTable('groom','guestBodyGroom');
+wireGuestTable('bride','guestBodyBride');
+
+document.querySelectorAll('button[data-side]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const side = btn.dataset.side;
+    state.guests[side].push({id:uid(),name:"",notes:"",drink:"",status:"pending"});
+    logHistory(`Added a new guest to ${side==='groom'?"Groom's":"Bride's"} guests`);
+    saveState(); renderGuestSide(side); renderOverview();
+  });
+});
+
+/* ---------------- events: checklist ---------------- */
+document.getElementById('checklistBody').addEventListener('input', e=>{
+  const li = e.target.closest('li.checklist-item'); if(!li) return;
+  const item = state.checklist.find(i=>i.id===li.dataset.id); if(!item) return;
+  if(e.target.dataset.field==='text'){
+    item.text = e.target.value;
+    saveState();
+    /* no DOM update needed: the input already displays what was typed */
+  }
+});
+document.getElementById('checklistBody').addEventListener('change', e=>{
+  const li = e.target.closest('li.checklist-item'); if(!li) return;
+  const item = state.checklist.find(i=>i.id===li.dataset.id); if(!item) return;
+  if(e.target.dataset.field==='done'){
+    item.done = e.target.checked;
+    logHistory(`Marked "${item.text||'(untitled task)'}" as ${item.done?'done':'not done'} in Checklist`);
+    saveState();
+    updateChecklistItemDoneUI(item.id, item.done);
+    renderOverview();
+  }
+});
+document.getElementById('checklistBody').addEventListener('click', e=>{
+  if(e.target.dataset.action==='delete-checklist-item'){
+    const li = e.target.closest('li');
+    const item = state.checklist.find(i=>i.id===li.dataset.id);
+    state.checklist = state.checklist.filter(i=>i.id!==li.dataset.id);
+    logHistory(`Deleted task "${item?(item.text||'(untitled task)'):''}" from Checklist`);
+    saveState(); renderChecklist(); renderOverview();
+  }
+  if(e.target.dataset.action==='add-checklist-item'){
+    state.checklist.push({id:uid(), section:e.target.dataset.section, text:'', done:false});
+    logHistory(`Added a new task to stage "${e.target.dataset.section}" in Checklist`);
+    saveState(); renderChecklist(); renderOverview();
+  }
+  if(e.target.dataset.action==='delete-checklist-section'){
+    const section = e.target.dataset.section;
+    const stillUsed = state.checklist.some(i=>i.section===section);
+    if(!stillUsed){
+      state.checklistSections = state.checklistSections.filter(s=>s!==section);
+      logHistory(`Removed stage "${section}" from Checklist`);
+      saveState(); renderChecklist();
+    }
+  }
+});
+document.getElementById('addChecklistSectionBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('newChecklistSectionInput');
+  const name = input.value.trim();
+  if(!name) return;
+  const exists = state.checklistSections.some(s=>s.toLowerCase()===name.toLowerCase());
+  if(exists){ alert('That stage already exists.'); return; }
+  state.checklistSections.push(name);
+  logHistory(`Added stage "${name}" to Checklist`);
+  saveState();
+  input.value = '';
+  renderChecklist();
+});
+document.getElementById('newChecklistSectionInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('addChecklistSectionBtn').click();
+  }
+});
+
+/* ---------------- events: agenda ---------------- */
+document.getElementById('agendaBody').addEventListener('input', e=>{
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const row = state.agenda.find(r=>r.id===tr.dataset.id); if(!row) return;
+  const field = e.target.dataset.field; if(!field) return;
+  row[field] = e.target.value;
+  saveState();
+  /* no DOM update needed: each input already displays what was typed */
+});
+document.getElementById('agendaBody').addEventListener('click', e=>{
+  if(e.target.dataset.action==='delete-agenda-row'){
+    const tr = e.target.closest('tr');
+    const row = state.agenda.find(r=>r.id===tr.dataset.id);
+    state.agenda = state.agenda.filter(r=>r.id!==tr.dataset.id);
+    logHistory(`Deleted agenda item "${row?(row.item||'(untitled item)'):''}"`);
+    saveState(); renderAgenda();
+  }
+});
+document.getElementById('addAgendaRow').addEventListener('click', ()=>{
+  state.agenda.push({id:uid(), item:"", startTime:"", endTime:"", person:"", remarks:""});
+  logHistory('Added a new agenda item');
+  saveState(); renderAgenda();
+});
+
+/* select-all-on-focus for every number input in the app, so typing overwrites
+   instead of inserting awkwardly into a right-aligned value */
+document.addEventListener('focusin', e=>{
+  if(e.target.tagName === 'INPUT' && e.target.type === 'number'){
+    e.target.select();
+  }
+});
+
+/* ---------------- backup / import / reset ---------------- */
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'wedding-budget-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  if(cloudSyncEnabled && !confirm("This is a shared, synced link — importing a backup here will replace the data everyone is currently seeing. Continue?")) return;
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(parsed && parsed.budget && parsed.guests){
+        state = parsed;
+        if(!state.payments) state.payments = {};
+        if(!state.categories || !state.categories.length) state.categories = DEFAULT_CATEGORIES.slice();
+        state.budget.forEach(b=>{ if(b.category && !state.categories.includes(b.category)) state.categories.push(b.category); });
+        if(!state.checklist || !state.checklistSections || !state.checklistSections.length){
+          const cd = buildDefaultChecklist();
+          state.checklist = state.checklist || cd.items;
+          state.checklistSections = state.checklistSections && state.checklistSections.length ? state.checklistSections : cd.sections;
+        }
+        if(!state.agenda || !state.agenda.length) state.agenda = buildDefaultAgenda();
+        if(!state.agendaClearedV1){
+          state.agenda.forEach(row=>{ row.person = ""; row.remarks = ""; });
+          state.agendaClearedV1 = true;
+        }
+        if(!state.users || !state.users.length){
+          state.users = [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }];
+        }
+        if(!state.history) state.history = [];
+        saveState(); renderAll(); applyRoleUI(); revalidateSessionAfterImport();
+      } else if(parsed && parsed.estimate && parsed.actual){
+        state = migrateFromV1(parsed);
+        saveState(); renderAll();
+      } else {
+        alert("That file doesn't look like a wedding budget backup.");
+      }
+    }catch(err){
+      alert("Couldn't read that file. Make sure it's a backup exported from this dashboard.");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  const scope = cloudSyncEnabled
+    ? "This clears all entered data for EVERYONE using this shared link (it's synced to the cloud), and starts from the blank template."
+    : "This clears all entered data on this device and starts from the blank template.";
+  if(confirm(scope + " Export a backup first if you want to keep it. Continue?")){
+    state = defaultState();
+    saveState(); renderAll();
+  }
+});
+
+/* ---------------- auth events: login, profile menu, password, users ---------------- */
+document.getElementById('loginBtn').addEventListener('click', ()=>{
+  const u = document.getElementById('loginUsername').value.trim();
+  const p = document.getElementById('loginPassword').value;
+  if(doLogin(u, p)){
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+  }
+});
+document.getElementById('loginPassword').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('loginBtn').click(); }
+});
+document.getElementById('loginUsername').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('loginPassword').focus(); }
+});
+
+document.getElementById('profileBtn').addEventListener('click', e=>{
+  e.stopPropagation();
+  document.getElementById('profileMenu').classList.toggle('open');
+});
+document.addEventListener('click', e=>{
+  const widget = document.getElementById('profileWidget');
+  if(!widget.contains(e.target)) document.getElementById('profileMenu').classList.remove('open');
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  logHistory('Logged out');
+  saveState();
+  doLogout();
+});
+
+/* change password */
+function closeChangePassword(){
+  document.getElementById('changePasswordOverlay').style.display = 'none';
+  document.getElementById('cpCurrent').value = '';
+  document.getElementById('cpNew').value = '';
+  document.getElementById('cpConfirm').value = '';
+  document.getElementById('cpError').textContent = '';
+}
+document.getElementById('openChangePassword').addEventListener('click', ()=>{
+  document.getElementById('profileMenu').classList.remove('open');
+  document.getElementById('changePasswordOverlay').style.display = 'flex';
+});
+document.getElementById('cpCancelBtn').addEventListener('click', closeChangePassword);
+document.getElementById('cpSaveBtn').addEventListener('click', ()=>{
+  const current = document.getElementById('cpCurrent').value;
+  const next = document.getElementById('cpNew').value;
+  const confirm2 = document.getElementById('cpConfirm').value;
+  const errEl = document.getElementById('cpError');
+  const user = state.users.find(u=>u.id===currentUser.id);
+  if(!user || user.passwordHash !== simpleHash(current)){
+    errEl.textContent = 'Current password is incorrect.'; return;
+  }
+  if(!next || next.length < 4){
+    errEl.textContent = 'New password must be at least 4 characters.'; return;
+  }
+  if(next !== confirm2){
+    errEl.textContent = 'New password and confirmation do not match.'; return;
+  }
+  user.passwordHash = simpleHash(next);
+  logHistory('Changed their password');
+  saveState();
+  closeChangePassword();
+});
+
+/* manage users */
+function roleOptionsForCurrentUser(){
+  if(currentUser.role==='superadmin') return ['groom','bride','task'];
+  return ['task']; // bride/groom can only add task-access users
+}
+function renderUserList(){
+  const listEl = document.getElementById('userList');
+  listEl.innerHTML = state.users.map(u=>{
+    const canDelete = currentUser.role==='superadmin' ? u.role!=='superadmin'
+      : (isPrivileged() && u.role==='task');
+    const delBtn = (canDelete && u.username!==currentUser.username)
+      ? `<button class="icon-btn" data-action="delete-user" data-id="${u.id}">✕</button>` : '';
+    return `<div class="user-row"><span><span class="u-name">${escapeAttr(u.username)}</span> <span class="u-role">${escapeAttr(roleLabel(u.role))}</span></span>${delBtn}</div>`;
+  }).join('');
+}
+document.getElementById('openManageUsers').addEventListener('click', ()=>{
+  document.getElementById('profileMenu').classList.remove('open');
+  document.getElementById('newUserRole').innerHTML = roleOptionsForCurrentUser()
+    .map(r=>`<option value="${r}">${roleLabel(r)}</option>`).join('');
+  document.getElementById('newUserError').textContent = '';
+  document.getElementById('newUserUsername').value = '';
+  document.getElementById('newUserPassword').value = '';
+  renderUserList();
+  document.getElementById('manageUsersOverlay').style.display = 'flex';
+});
+document.getElementById('muCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('manageUsersOverlay').style.display = 'none';
+});
+document.getElementById('createUserBtn').addEventListener('click', ()=>{
+  const username = document.getElementById('newUserUsername').value.trim();
+  const password = document.getElementById('newUserPassword').value;
+  const role = document.getElementById('newUserRole').value;
+  const errEl = document.getElementById('newUserError');
+  if(!username || !password){ errEl.textContent = 'Username and password are required.'; return; }
+  if(findUserByName(username)){ errEl.textContent = 'That username is already taken.'; return; }
+  if(!roleOptionsForCurrentUser().includes(role)){ errEl.textContent = "You aren't allowed to create that user level."; return; }
+  state.users.push({ id:uid(), username, passwordHash: simpleHash(password), role, createdBy: currentUser.username });
+  logHistory(`Created user "${username}" (${roleLabel(role)})`);
+  saveState();
+  populateUsernameDatalist();
+  document.getElementById('newUserUsername').value = '';
+  document.getElementById('newUserPassword').value = '';
+  errEl.textContent = '';
+  renderUserList();
+});
+document.getElementById('userList').addEventListener('click', e=>{
+  if(e.target.dataset.action==='delete-user'){
+    const target = state.users.find(u=>u.id===e.target.dataset.id);
+    if(!target) return;
+    if(!confirm(`Remove user "${target.username}"?`)) return;
+    state.users = state.users.filter(u=>u.id!==target.id);
+    logHistory(`Removed user "${target.username}"`);
+    saveState();
+    populateUsernameDatalist();
+    renderUserList();
+  }
+});
+
+/* ---------------- boot ---------------- */
+saveState(); /* persist any one-time migrations/backfills performed during load */
+attemptAutoLogin(); /* renders the app only if a valid session is found; otherwise the login screen stays up */
+initCloudSync(); /* no-op if FIREBASE_CONFIG is still left as placeholders */
+})();
+</script>
+</body>
+</html>
