@@ -345,6 +345,18 @@
     border:1px dashed var(--line); border-radius:8px; background:var(--beige-dim);
   }
 
+  /* ---------- projects ---------- */
+  .project-list{ display:flex; flex-direction:column; gap:12px; }
+  .project-card{
+    border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px;
+    background:var(--beige-dim); display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between;
+  }
+  .project-card-info h3{ margin:0 0 4px; font-size:19px; color:var(--emerald-deep); }
+  .project-card-info .p-couple{ font-size:13px; color:var(--ink-soft); }
+  .project-card-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .project-existing-user{ display:flex; gap:6px; align-items:center; }
+  .project-existing-user select{ width:auto; min-width:150px; border:1px solid var(--line); background:var(--paper); }
+
   /* ---------- history ---------- */
   .history-entry{ display:flex; gap:12px; padding:9px 4px; border-bottom:1px dashed var(--line); font-size:13px; }
   .history-entry:last-child{ border-bottom:none; }
@@ -476,6 +488,7 @@
     </div>
     <button class="profile-menu-item" id="openChangePassword">Change password</button>
     <button class="profile-menu-item" id="openManageUsers" style="display:none;">Manage users</button>
+    <button class="profile-menu-item" id="switchProjectBtn" style="display:none;">Switch project</button>
     <button class="profile-menu-item" id="logoutBtn">Log out</button>
   </div>
 </div>
@@ -502,9 +515,16 @@
 <div id="manageUsersOverlay" class="modal-overlay" style="display:none;">
   <div class="modal-card" style="max-width:520px;">
     <h2>Manage users</h2>
+    <p class="sub" id="manageUsersSubtitle" style="margin-bottom:10px;"></p>
     <div id="userList" class="user-list"></div>
     <div class="modal-divider"></div>
-    <p class="sub" style="margin-bottom:10px;">Add a new user</p>
+    <p class="sub" style="margin-bottom:10px;">Add an existing user to this project</p>
+    <div class="project-existing-user">
+      <select id="existingUserPicker"></select>
+      <button class="btn small" id="addExistingUserBtn">+ Add</button>
+    </div>
+    <div class="modal-divider"></div>
+    <p class="sub" style="margin-bottom:10px;">Or create a brand-new user</p>
     <label>Username</label>
     <input type="text" id="newUserUsername" autocomplete="off">
     <label>Password</label>
@@ -519,11 +539,23 @@
   </div>
 </div>
 
+<!-- PROJECT PICKER (for a user with access to more than one project) -->
+<div id="projectPickerOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <h2>Choose a project</h2>
+    <p class="sub" style="margin-bottom:10px;">Your account has access to more than one wedding project.</p>
+    <div id="projectPickerList" class="project-list"></div>
+    <div class="toolbar" style="margin-top:14px;" id="projectPickerCancelWrap">
+      <button class="btn ghost" id="projectPickerCancelBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <header class="hero">
   <div class="hero-inner">
     <div class="hero-top">
       <div>
-        <p class="eyebrow">Wedding management application</p>
+        <p class="eyebrow" id="headerEyebrow">Wedding management application</p>
         <h1 class="names"><span id="brideNameDisplay" contenteditable="true" spellcheck="false" title="Click to edit">Nisuri</span><span class="amp">&amp;</span><span id="groomNameDisplay" contenteditable="true" spellcheck="false" title="Click to edit">Pesala</span></h1>
       </div>
       <div class="hero-meta">
@@ -546,6 +578,7 @@
 
 <nav class="tabs">
   <div class="tabs-inner" id="tabBar">
+    <button class="tab-btn" data-view="projects" id="projectsTabBtn" style="display:none;">Projects</button>
     <button class="tab-btn active" data-view="overview">Overview</button>
     <button class="tab-btn" data-view="budget">Budget (estimate &amp; actual)</button>
     <button class="tab-btn" data-view="ledger">Payment ledger</button>
@@ -559,6 +592,47 @@
 </nav>
 
 <main>
+
+  <!-- PROJECTS (Super Admin only) -->
+  <section class="view" id="view-projects">
+    <div class="panel">
+      <h2>Wedding projects</h2>
+      <p class="sub">Each project is a completely separate wedding — its own budget, guest list, checklist, and agenda. Useful for a couple with two separate functions (e.g. wedding and homecoming at different hotels), or for managing more than one couple's wedding from one account.</p>
+      <div id="projectList" class="project-list"></div>
+    </div>
+    <div class="panel">
+      <h2>Create a new project</h2>
+      <p class="sub">This creates brand-new Bride and Groom logins for this project. To reuse an account that already exists on the platform, open the project once created and use "Add existing user" instead.</p>
+      <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft); font-weight:600; margin:12px 0 4px;">Project title</label>
+      <input type="text" id="newProjectTitle" placeholder="e.g. Wedding Day, Homecoming">
+      <div class="funding-grid" style="margin-top:14px;">
+        <div class="person-card">
+          <h3>Bride</h3>
+          <div class="row"><span>Name</span><input type="text" id="newProjectBrideName" placeholder="Bride's name"></div>
+          <div class="row"><span>Username</span><input type="text" id="newProjectBrideUsername" placeholder="Login username"></div>
+          <div class="row"><span>Password</span><input type="password" id="newProjectBridePassword" placeholder="Login password"></div>
+        </div>
+        <div class="person-card">
+          <h3>Groom</h3>
+          <div class="row"><span>Name</span><input type="text" id="newProjectGroomName" placeholder="Groom's name"></div>
+          <div class="row"><span>Username</span><input type="text" id="newProjectGroomUsername" placeholder="Login username"></div>
+          <div class="row"><span>Password</span><input type="password" id="newProjectGroomPassword" placeholder="Login password"></div>
+        </div>
+      </div>
+      <div class="modal-error" id="newProjectError" style="margin-top:10px;"></div>
+      <div class="toolbar" style="margin-top:14px;">
+        <button class="btn primary" id="createProjectBtn">+ Create project</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Shown instead of any project tab's content when no project is selected yet -->
+  <section class="view" id="view-no-project">
+    <div class="panel">
+      <h2 id="noProjectHeading">No project selected</h2>
+      <p class="sub" id="noProjectMessage">Choose a project from the Projects tab to get started.</p>
+    </div>
+  </section>
 
   <!-- OVERVIEW -->
   <section class="view active" id="view-overview">
@@ -822,8 +896,13 @@ const cloudSyncEnabled = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexO
 let cloudDocRef = null;
 let cloudReady = false; /* true once the first snapshot has been received */
 
+const STORAGE_KEY_V3 = 'weddingBudgetDashboard_v3';
 const STORAGE_KEY = 'weddingBudgetDashboard_v2';
 const OLD_STORAGE_KEY = 'weddingBudgetDashboard_v1';
+/* which project THIS device/browser is currently looking at — deliberately
+   local-only, never synced, so two people can be viewing different
+   projects on their own devices at the same time */
+const CURRENT_PROJECT_KEY = 'weddingAppCurrentProject_v1';
 const DEFAULT_CATEGORIES = ["Venue & Catering","Décor & Ambience","Bride & Groom","Ceremony & Entertainment","Media & Keepsakes","Gifts & Logistics","Other"];
 
 const DEFAULT_CHECKLIST = [
@@ -1087,7 +1166,7 @@ function buildDefaultAgenda(){
   ));
 }
 
-function defaultState(){
+function freshProjectData(title, groomName, brideName){
   const budgetSeed = [
     ["Venue & Catering","Venue"],
     ["Venue & Catering","Hotel refundable deposit"],
@@ -1122,14 +1201,17 @@ function defaultState(){
     ["Gifts & Logistics","Honeymoon"]
   ];
   const checklistData = buildDefaultChecklist();
+  const groom = groomName || "Groom";
+  const bride = brideName || "Bride";
   return {
-    meta:{ groom:"Pesala", bride:"Nisuri", venue:"Water's Edge — Eagle Banquet Hall", date:"2026-11-27" },
+    title: title || "Untitled project",
+    meta:{ groom, bride, venue:"", date:"" },
     categories: DEFAULT_CATEGORIES.slice(),
     budget: budgetSeed.map(([category,description])=>({id:uid(),category,description,estCount:1,estUnitCost:0,actCount:0,actUnitCost:0})),
     payments: {},
     funding: [
-      {id:uid(),person:"Nisuri",pledged:2500000},
-      {id:uid(),person:"Pesala",pledged:2500000}
+      {id:uid(),person:bride,pledged:0},
+      {id:uid(),person:groom,pledged:0}
     ],
     guests:{
       groom:[{id:uid(),name:"e.g. Kasun Perera",notes:"Colleague",drink:"Whisky",status:"pending"}],
@@ -1139,11 +1221,45 @@ function defaultState(){
     checklist: checklistData.items,
     agenda: buildDefaultAgenda(),
     agendaClearedV1: true,
-    users: [
-      { id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }
-    ],
     history: []
   };
+}
+function defaultAppData(){
+  const pid = 'p1';
+  const project = freshProjectData("Project 01", "Pesala", "Nisuri");
+  project.meta.venue = "Water's Edge — Eagle Banquet Hall";
+  project.meta.date = "2026-11-27";
+  return {
+    projects: { [pid]: project },
+    projectOrder: [pid],
+    users: [
+      { id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }
+    ]
+  };
+}
+/* fills in any fields a project object might be missing (used both for
+   migrating older saves and defensively on every load) */
+function backfillProjectFields(p){
+  if(!p.title) p.title = "Untitled project";
+  if(!p.meta) p.meta = { groom:"Groom", bride:"Bride", venue:"", date:"" };
+  if(!p.budget) p.budget = [];
+  if(!p.categories || !p.categories.length) p.categories = DEFAULT_CATEGORIES.slice();
+  p.budget.forEach(b=>{ if(b.category && !p.categories.includes(b.category)) p.categories.push(b.category); });
+  if(!p.payments) p.payments = {};
+  if(!p.funding) p.funding = [];
+  if(!p.guests) p.guests = { groom:[], bride:[] };
+  if(!p.checklist || !p.checklistSections || !p.checklistSections.length){
+    const cd = buildDefaultChecklist();
+    p.checklist = p.checklist || cd.items;
+    p.checklistSections = (p.checklistSections && p.checklistSections.length) ? p.checklistSections : cd.sections;
+  }
+  if(!p.agenda || !p.agenda.length) p.agenda = buildDefaultAgenda();
+  if(!p.agendaClearedV1){
+    p.agenda.forEach(row=>{ row.person = ""; row.remarks = ""; });
+    p.agendaClearedV1 = true;
+  }
+  if(!p.history) p.history = [];
+  return p;
 }
 
 function migrateFromV1(v1){
@@ -1168,53 +1284,118 @@ function migrateFromV1(v1){
   const categories = DEFAULT_CATEGORIES.slice();
   budget.forEach(b=>{ if(b.category && !categories.includes(b.category)) categories.push(b.category); });
   const checklistData = buildDefaultChecklist();
-  return { meta:v1.meta, categories, budget, payments, funding:v1.funding||[], guests:v1.guests||{groom:[],bride:[]}, checklistSections: checklistData.sections, checklist: checklistData.items, agenda: buildDefaultAgenda(), agendaClearedV1: true,
+  return { title:"Project 01", meta:v1.meta, categories, budget, payments, funding:v1.funding||[], guests:v1.guests||{groom:[],bride:[]}, checklistSections: checklistData.sections, checklist: checklistData.items, agenda: buildDefaultAgenda(), agendaClearedV1: true,
     users: [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }],
     history: []
   };
 }
 
-function loadState(){
+/* Wraps a single "flat" project (the shape every save used before multiple
+   projects existed — a top-level meta/budget/guests/etc, with users and
+   history also at the top level) into the new { projects, projectOrder,
+   users } shape. This is what turns your existing wedding into "Project 01"
+   the first time this update loads — nothing about the data itself changes,
+   it just moves one level deeper. */
+function upgradeFlatToV3(flat){
+  const pid = 'p1';
+  const project = backfillProjectFields({
+    title: flat.title || "Project 01",
+    meta: flat.meta, categories: flat.categories, budget: flat.budget,
+    payments: flat.payments, funding: flat.funding, guests: flat.guests,
+    checklistSections: flat.checklistSections, checklist: flat.checklist,
+    agenda: flat.agenda, agendaClearedV1: flat.agendaClearedV1,
+    history: flat.history || []
+  });
+  const users = (flat.users||[]).map(u=>{
+    if(u.role === 'superadmin') return Object.assign({}, u);
+    return Object.assign({}, u, { projectIds: (u.projectIds && u.projectIds.length) ? u.projectIds : [pid] });
+  });
+  return { projects: { [pid]: project }, projectOrder: [pid], users };
+}
+
+/* Accepts data in ANY shape this app has ever saved (v1 estimate/actual split,
+   v2 flat single-project, or the current v3 multi-project shape) and always
+   returns a valid v3 { projects, projectOrder, users } object. Used for data
+   coming from localStorage, an imported backup file, or the cloud — so every
+   entry point is defended by the exact same logic. */
+function normalizeAppData(raw){
+  if(!raw || typeof raw !== 'object') return defaultAppData();
+  if(raw.projects && raw.projectOrder){
+    Object.keys(raw.projects).forEach(pid=>{ backfillProjectFields(raw.projects[pid]); });
+    if(!raw.users) raw.users = [];
+    if(!raw.users.some(u=>u.role==='superadmin')){
+      raw.users.push({ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null });
+    }
+    return raw;
+  }
+  if(raw.budget && raw.guests){
+    return upgradeFlatToV3(raw);
+  }
+  if(raw.estimate && raw.actual){
+    return upgradeFlatToV3(migrateFromV1(raw));
+  }
+  return defaultAppData();
+}
+
+function loadAppData(){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY_V3);
     if(raw){
       const parsed = JSON.parse(raw);
-      if(parsed && parsed.budget && parsed.guests){
-        if(!parsed.categories || !parsed.categories.length) parsed.categories = DEFAULT_CATEGORIES.slice();
-        parsed.budget.forEach(b=>{ if(b.category && !parsed.categories.includes(b.category)) parsed.categories.push(b.category); });
-        if(!parsed.checklist || !parsed.checklistSections || !parsed.checklistSections.length){
-          const cd = buildDefaultChecklist();
-          parsed.checklist = parsed.checklist || cd.items;
-          parsed.checklistSections = parsed.checklistSections && parsed.checklistSections.length ? parsed.checklistSections : cd.sections;
-        }
-        if(!parsed.agenda || !parsed.agenda.length) parsed.agenda = buildDefaultAgenda();
-        if(!parsed.agendaClearedV1){
-          parsed.agenda.forEach(row=>{ row.person = ""; row.remarks = ""; });
-          parsed.agendaClearedV1 = true;
-        }
-        if(!parsed.users || !parsed.users.length){
-          parsed.users = [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }];
-        }
-        if(!parsed.history) parsed.history = [];
-        return parsed;
-      }
+      if(parsed && parsed.projects) return normalizeAppData(parsed);
+    }
+    const v2raw = localStorage.getItem(STORAGE_KEY);
+    if(v2raw){
+      const parsed = JSON.parse(v2raw);
+      if(parsed && parsed.budget && parsed.guests) return normalizeAppData(parsed);
     }
     const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
     if(oldRaw){
       const oldParsed = JSON.parse(oldRaw);
-      if(oldParsed && oldParsed.estimate && oldParsed.actual){
-        return migrateFromV1(oldParsed);
-      }
+      if(oldParsed && oldParsed.estimate && oldParsed.actual) return normalizeAppData(oldParsed);
     }
   }catch(e){}
-  return defaultState();
+  return defaultAppData();
 }
 
-let state = loadState();
+function loadCurrentProjectId(){
+  try{ return localStorage.getItem(CURRENT_PROJECT_KEY) || null; }catch(e){ return null; }
+}
+function saveCurrentProjectId(pid){
+  try{
+    if(pid) localStorage.setItem(CURRENT_PROJECT_KEY, pid);
+    else localStorage.removeItem(CURRENT_PROJECT_KEY);
+  }catch(e){}
+}
+
+let appData = loadAppData();
+let currentProjectId = loadCurrentProjectId();
+function currentProject(){
+  return (currentProjectId && appData.projects[currentProjectId]) ? appData.projects[currentProjectId] : null;
+}
+
+/* `state` is a stable object that is NEVER reassigned — it just always
+   reads/writes through to whichever project is currently open. This is what
+   lets every existing render function and event handler in this file go on
+   saying state.budget / state.guests / state.checklist exactly as before,
+   completely unaware that there's more than one project on the page. */
+const state = {};
+['meta','categories','budget','payments','funding','guests','checklistSections','checklist','agenda','agendaClearedV1','history'].forEach(field=>{
+  Object.defineProperty(state, field, {
+    get(){ const p = currentProject(); return p ? p[field] : undefined; },
+    set(v){ const p = currentProject(); if(p) p[field] = v; },
+    enumerable: true, configurable: true
+  });
+});
+Object.defineProperty(state, 'users', {
+  get(){ return appData.users; },
+  set(v){ appData.users = v; },
+  enumerable: true, configurable: true
+});
 let saveTimer = null;
 let cloudPushTimer = null;
 function saveState(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(appData));
   const ind = document.getElementById('saveIndicator');
   ind.classList.add('show');
   clearTimeout(saveTimer);
@@ -1227,7 +1408,7 @@ function saveState(){
 }
 function pushStateToCloud(){
   if(!cloudDocRef) return;
-  cloudDocRef.set(JSON.parse(JSON.stringify(state))).catch(err=>{
+  cloudDocRef.set(JSON.parse(JSON.stringify(appData))).catch(err=>{
     console.error('Cloud sync: failed to save.', err);
   });
 }
@@ -1237,25 +1418,32 @@ function pushStateToCloud(){
    field (that would yank their cursor / overwrite what they're entering,
    the same problem fixed earlier for numeric fields). Instead it's held
    until the field they're in loses focus, then applied. */
-let pendingRemoteState = null;
+let pendingRemoteAppData = null;
 function isCurrentlyEditingAField(){
   const el = document.activeElement;
   if(!el) return false;
   return el.tagName==='INPUT' || el.tagName==='SELECT' || el.tagName==='TEXTAREA' || el.isContentEditable;
 }
 function applyPendingRemoteStateIfSafe(){
-  if(!pendingRemoteState) return;
+  if(!pendingRemoteAppData) return;
   if(isCurrentlyEditingAField()) return; /* try again after the field loses focus */
-  state = pendingRemoteState;
-  pendingRemoteState = null;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  appData = pendingRemoteAppData;
+  pendingRemoteAppData = null;
+  localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(appData));
   if(!currentUser) return; /* nothing logged in on this device yet — the login screen doesn't show data anyway */
   if(!findUserByName(currentUser.username)){
     doLogout();
-  } else {
-    renderAll();
-    applyRoleUI();
+    return;
   }
+  if(currentProjectId && !appData.projects[currentProjectId]){
+    /* the project this device was looking at no longer exists (deleted
+       elsewhere) — fall back to re-running the normal post-login routing */
+    currentProjectId = null;
+    saveCurrentProjectId(null);
+  }
+  establishProjectContextAfterLogin({ skipIfProjectAlreadySet: true });
+  renderAll();
+  applyRoleUI();
 }
 document.addEventListener('focusout', ()=>{ setTimeout(applyPendingRemoteStateIfSafe, 60); });
 
@@ -1296,14 +1484,14 @@ function attachCloudListener(){
       setSyncBadge('live', 'Live — synced across devices');
       return;
     }
-    const remote = snap.data();
+    const remote = normalizeAppData(snap.data());
     const remoteJSON = JSON.stringify(remote);
     cloudReady = true;
     setSyncBadge('live', 'Live — synced across devices');
-    if(remoteJSON === JSON.stringify(state)){
+    if(remoteJSON === JSON.stringify(appData)){
       return; /* this is just our own write echoing back — nothing new */
     }
-    pendingRemoteState = remote;
+    pendingRemoteAppData = remote;
     applyPendingRemoteStateIfSafe();
   }, err=>{
     console.error('Cloud sync: lost connection to the shared data.', err);
@@ -1354,21 +1542,38 @@ function populateUsernameDatalist(){
   if(dl) dl.innerHTML = state.users.map(u=>`<option value="${escapeAttr(u.username)}">`).join('');
 }
 
+function userProjectIds(user){
+  return (user && user.projectIds) ? user.projectIds : [];
+}
+function accessibleProjectIds(){
+  if(!currentUser) return [];
+  if(currentUser.role === 'superadmin') return appData.projectOrder.slice();
+  const user = findUserByName(currentUser.username);
+  return userProjectIds(user).filter(pid=>appData.projects[pid]);
+}
+
 /* Renders the profile widget and shows/hides role-restricted UI (History tab,
-   Manage Users menu item). Re-run after login, logout, or a user/role change. */
+   Manage Users menu item, Projects tab). Re-run after login, logout, project
+   switch, or a user/role change. */
 function applyRoleUI(){
   const historyBtn = document.getElementById('historyTabBtn');
   const manageBtn = document.getElementById('openManageUsers');
+  const projectsBtn = document.getElementById('projectsTabBtn');
+  const switchBtn = document.getElementById('switchProjectBtn');
   if(!currentUser){
     historyBtn.style.display = 'none';
     manageBtn.style.display = 'none';
+    projectsBtn.style.display = 'none';
+    switchBtn.style.display = 'none';
     return;
   }
   historyBtn.style.display = isPrivileged() ? '' : 'none';
   manageBtn.style.display = isPrivileged() ? '' : 'none';
+  projectsBtn.style.display = currentUser.role === 'superadmin' ? '' : 'none';
+  switchBtn.style.display = (currentUser.role !== 'superadmin' && accessibleProjectIds().length > 1) ? '' : 'none';
   // if a task user was on a now-hidden tab (History), fall back to Overview
   if(!isPrivileged() && document.getElementById('view-history').classList.contains('active')){
-    document.querySelector('.tab-btn[data-view="overview"]').click();
+    showTab('overview');
   }
   document.getElementById('profileBtn').textContent = currentUser.username.slice(0,1).toUpperCase();
   document.getElementById('profileMenuName').textContent = currentUser.username;
@@ -1376,10 +1581,47 @@ function applyRoleUI(){
   populateUsernameDatalist();
 }
 
+/* Decides which project (if any) this device should land on right after a
+   login or session restore, and switches to the right first tab. */
+function establishProjectContextAfterLogin(opts){
+  opts = opts || {};
+  if(currentUser.role === 'superadmin'){
+    if(!(opts.skipIfProjectAlreadySet && currentProjectId)){
+      showTab('projects');
+    }
+    return;
+  }
+  const ids = accessibleProjectIds();
+  if(opts.skipIfProjectAlreadySet && currentProjectId && ids.includes(currentProjectId)){
+    return; /* already looking at a project this user can still access */
+  }
+  document.getElementById('projectPickerOverlay').style.display = 'none';
+  if(ids.length === 0){
+    currentProjectId = null;
+    saveCurrentProjectId(null);
+    document.getElementById('noProjectHeading').textContent = "No project assigned yet";
+    document.getElementById('noProjectMessage').textContent = "Your account isn't attached to a wedding project yet. Ask your Super Admin to add you to one.";
+    showTab('overview');
+  } else if(ids.length === 1){
+    currentProjectId = ids[0];
+    saveCurrentProjectId(currentProjectId);
+    showTab('overview');
+  } else {
+    if(!currentProjectId || !ids.includes(currentProjectId)){
+      currentProjectId = null;
+      saveCurrentProjectId(null);
+    }
+    renderProjectPicker(ids);
+    document.getElementById('projectPickerOverlay').style.display = 'flex';
+    showTab('overview'); /* will show the "no project" placeholder until they pick one */
+  }
+}
+
 function revalidateSessionAfterImport(){
   if(currentUser && !findUserByName(currentUser.username)){
     doLogout();
-  } else {
+  } else if(currentUser){
+    establishProjectContextAfterLogin({ skipIfProjectAlreadySet: true });
     applyRoleUI();
   }
 }
@@ -1402,14 +1644,18 @@ function doLogin(username, password){
   currentUser = { id:user.id, username:user.username, role:user.role };
   try{ localStorage.setItem(SESSION_KEY, user.username); }catch(e){}
   hideLogin();
+  establishProjectContextAfterLogin();
   applyRoleUI();
   renderAll();
   return true;
 }
 function doLogout(){
   currentUser = null;
+  currentProjectId = null;
+  saveCurrentProjectId(null);
   try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   document.getElementById('profileMenu').classList.remove('open');
+  document.getElementById('projectPickerOverlay').style.display = 'none';
   showLogin('');
 }
 
@@ -1420,6 +1666,7 @@ function attemptAutoLogin(){
   if(user){
     currentUser = { id:user.id, username:user.username, role:user.role };
     hideLogin();
+    establishProjectContextAfterLogin({ skipIfProjectAlreadySet: true });
     applyRoleUI();
     renderAll();
     return true;
@@ -1483,6 +1730,8 @@ document.addEventListener('focusout', e=>{
 
 /* ---------------- render: meta ---------------- */
 function renderMeta(){
+  const p = currentProject();
+  document.getElementById('headerEyebrow').textContent = p ? p.title : "Wedding management application";
   document.getElementById('groomNameDisplay').textContent = state.meta.groom || "Groom";
   document.getElementById('brideNameDisplay').textContent = state.meta.bride || "Bride";
   document.getElementById('venueInput').value = state.meta.venue || "";
@@ -1492,6 +1741,15 @@ function renderMeta(){
   document.querySelectorAll('button[data-side="groom"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.groom||"groom") + "'s list");
   document.querySelectorAll('button[data-side="bride"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.bride||"bride") + "'s list");
   renderCountdown();
+}
+function renderNoProjectHeader(){
+  document.getElementById('headerEyebrow').textContent = "Wedding management application";
+  document.getElementById('groomNameDisplay').textContent = "Groom";
+  document.getElementById('brideNameDisplay').textContent = "Bride";
+  document.getElementById('venueInput').value = "";
+  document.getElementById('dateInput').value = "";
+  const cd = document.getElementById('countdownValue');
+  if(cd) cd.textContent = "Set your date";
 }
 function renderCountdown(){
   const el = document.getElementById('countdownValue');
@@ -1999,6 +2257,11 @@ function renderHistory(){
 }
 
 function renderAll(){
+  renderProjects();
+  if(!currentProject()){
+    renderNoProjectHeader();
+    return;
+  }
   renderMeta();
   renderBudget();
   renderLedger();
@@ -2011,14 +2274,22 @@ function renderAll(){
 }
 
 /* ---------------- events: tabs ---------------- */
+function showTab(view){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const needsProject = view !== 'projects';
+  if(needsProject && !currentProject()){
+    document.getElementById('view-no-project').classList.add('active');
+    return;
+  }
+  const target = document.getElementById('view-' + view);
+  if(target) target.classList.add('active');
+  if(view === 'history') renderHistory();
+}
 document.getElementById('tabBar').addEventListener('click', e=>{
   const btn = e.target.closest('.tab-btn');
   if(!btn) return;
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-' + btn.dataset.view).classList.add('active');
-  if(btn.dataset.view === 'history') renderHistory();
+  showTab(btn.dataset.view);
 });
 
 /* ---------------- events: meta ---------------- */
@@ -2359,48 +2630,43 @@ document.addEventListener('focusin', e=>{
 
 /* ---------------- backup / import / reset ---------------- */
 document.getElementById('exportBtn').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const p = currentProject();
+  if(!p){ alert('Open a project first.'); return; }
+  const blob = new Blob([JSON.stringify(p,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'wedding-budget-backup.json';
+  const safeTitle = (p.title||'project').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  a.href = url; a.download = `${safeTitle || 'wedding'}-backup.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
 document.getElementById('importBtn').addEventListener('click', ()=>{
-  if(cloudSyncEnabled && !confirm("This is a shared, synced link — importing a backup here will replace the data everyone is currently seeing. Continue?")) return;
+  if(!currentProject()){ alert('Open a project first.'); return; }
+  if(cloudSyncEnabled && !confirm("This is a shared, synced link — importing a backup here will replace this project's data for everyone. Continue?")) return;
   document.getElementById('importFile').click();
 });
 document.getElementById('importFile').addEventListener('change', e=>{
   const file = e.target.files[0]; if(!file) return;
+  const pid = currentProjectId;
+  if(!pid){ e.target.value=''; return; }
   const reader = new FileReader();
   reader.onload = ()=>{
     try{
       const parsed = JSON.parse(reader.result);
-      if(parsed && parsed.budget && parsed.guests){
-        state = parsed;
-        if(!state.payments) state.payments = {};
-        if(!state.categories || !state.categories.length) state.categories = DEFAULT_CATEGORIES.slice();
-        state.budget.forEach(b=>{ if(b.category && !state.categories.includes(b.category)) state.categories.push(b.category); });
-        if(!state.checklist || !state.checklistSections || !state.checklistSections.length){
-          const cd = buildDefaultChecklist();
-          state.checklist = state.checklist || cd.items;
-          state.checklistSections = state.checklistSections && state.checklistSections.length ? state.checklistSections : cd.sections;
-        }
-        if(!state.agenda || !state.agenda.length) state.agenda = buildDefaultAgenda();
-        if(!state.agendaClearedV1){
-          state.agenda.forEach(row=>{ row.person = ""; row.remarks = ""; });
-          state.agendaClearedV1 = true;
-        }
-        if(!state.users || !state.users.length){
-          state.users = [{ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null }];
-        }
-        if(!state.history) state.history = [];
-        saveState(); renderAll(); applyRoleUI(); revalidateSessionAfterImport();
+      let incoming = null;
+      if(parsed && parsed.projects){
+        alert("That file is a full multi-project backup, not a single-project one — it can't be imported here.");
+      } else if(parsed && parsed.budget && parsed.guests){
+        incoming = backfillProjectFields(parsed);
       } else if(parsed && parsed.estimate && parsed.actual){
-        state = migrateFromV1(parsed);
-        saveState(); renderAll();
+        incoming = backfillProjectFields(migrateFromV1(parsed));
       } else {
-        alert("That file doesn't look like a wedding budget backup.");
+        alert("That file doesn't look like a wedding project backup.");
+      }
+      if(incoming){
+        incoming.title = appData.projects[pid].title; /* keep this project's own title */
+        appData.projects[pid] = incoming;
+        saveState(); renderAll(); applyRoleUI();
       }
     }catch(err){
       alert("Couldn't read that file. Make sure it's a backup exported from this dashboard.");
@@ -2410,11 +2676,15 @@ document.getElementById('importFile').addEventListener('change', e=>{
   e.target.value = '';
 });
 document.getElementById('resetBtn').addEventListener('click', ()=>{
+  const p = currentProject();
+  if(!p){ alert('Open a project first.'); return; }
   const scope = cloudSyncEnabled
-    ? "This clears all entered data for EVERYONE using this shared link (it's synced to the cloud), and starts from the blank template."
-    : "This clears all entered data on this device and starts from the blank template.";
-  if(confirm(scope + " Export a backup first if you want to keep it. Continue?")){
-    state = defaultState();
+    ? `This clears all budget, guest, checklist, and agenda data in "${p.title}" for EVERYONE using this shared link, and starts that project fresh.`
+    : `This clears all budget, guest, checklist, and agenda data in "${p.title}" on this device, and starts that project fresh.`;
+  if(confirm(scope + " The project's title and couple's names are kept. Export a backup first if you want to keep the data. Continue?")){
+    const fresh = freshProjectData(p.title, p.meta.groom, p.meta.bride);
+    fresh.meta = p.meta; /* keep venue/date too, not just names */
+    appData.projects[currentProjectId] = fresh;
     saveState(); renderAll();
   }
 });
@@ -2490,22 +2760,41 @@ function roleOptionsForCurrentUser(){
 }
 function renderUserList(){
   const listEl = document.getElementById('userList');
-  listEl.innerHTML = state.users.map(u=>{
-    const canDelete = currentUser.role==='superadmin' ? u.role!=='superadmin'
+  const pid = currentProjectId;
+  const relevant = state.users.filter(u=>u.role==='superadmin' || userProjectIds(u).includes(pid));
+  listEl.innerHTML = relevant.map(u=>{
+    const onlyThisProject = u.role!=='superadmin' && userProjectIds(u).length <= 1;
+    const canRemove = currentUser.role==='superadmin' ? u.role!=='superadmin'
       : (isPrivileged() && u.role==='task');
-    const delBtn = (canDelete && u.username!==currentUser.username)
-      ? `<button class="icon-btn" data-action="delete-user" data-id="${u.id}">✕</button>` : '';
+    const label = canRemove ? (onlyThisProject ? 'Delete' : 'Remove from project') : '';
+    const delBtn = (canRemove && u.username!==currentUser.username)
+      ? `<button class="icon-btn" data-action="delete-user" data-id="${u.id}" title="${label}">✕</button>` : '';
     return `<div class="user-row"><span><span class="u-name">${escapeAttr(u.username)}</span> <span class="u-role">${escapeAttr(roleLabel(u.role))}</span></span>${delBtn}</div>`;
   }).join('');
 }
+function renderExistingUserPicker(){
+  const sel = document.getElementById('existingUserPicker');
+  const pid = currentProjectId;
+  const candidates = state.users.filter(u=>u.role!=='superadmin' && !userProjectIds(u).includes(pid));
+  if(!candidates.length){
+    sel.innerHTML = `<option value="">No other users available</option>`;
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    sel.innerHTML = candidates.map(u=>`<option value="${u.id}">${escapeAttr(u.username)} (${escapeAttr(roleLabel(u.role))})</option>`).join('');
+  }
+}
 document.getElementById('openManageUsers').addEventListener('click', ()=>{
   document.getElementById('profileMenu').classList.remove('open');
+  const p = currentProject();
+  document.getElementById('manageUsersSubtitle').textContent = p ? `Users with access to "${p.title}".` : '';
   document.getElementById('newUserRole').innerHTML = roleOptionsForCurrentUser()
     .map(r=>`<option value="${r}">${roleLabel(r)}</option>`).join('');
   document.getElementById('newUserError').textContent = '';
   document.getElementById('newUserUsername').value = '';
   document.getElementById('newUserPassword').value = '';
   renderUserList();
+  renderExistingUserPicker();
   document.getElementById('manageUsersOverlay').style.display = 'flex';
 });
 document.getElementById('muCancelBtn').addEventListener('click', ()=>{
@@ -2519,7 +2808,7 @@ document.getElementById('createUserBtn').addEventListener('click', ()=>{
   if(!username || !password){ errEl.textContent = 'Username and password are required.'; return; }
   if(findUserByName(username)){ errEl.textContent = 'That username is already taken.'; return; }
   if(!roleOptionsForCurrentUser().includes(role)){ errEl.textContent = "You aren't allowed to create that user level."; return; }
-  state.users.push({ id:uid(), username, passwordHash: simpleHash(password), role, createdBy: currentUser.username });
+  state.users.push({ id:uid(), username, passwordHash: simpleHash(password), role, createdBy: currentUser.username, projectIds:[currentProjectId] });
   logHistory(`Created user "${username}" (${roleLabel(role)})`);
   saveState();
   populateUsernameDatalist();
@@ -2527,18 +2816,148 @@ document.getElementById('createUserBtn').addEventListener('click', ()=>{
   document.getElementById('newUserPassword').value = '';
   errEl.textContent = '';
   renderUserList();
+  renderExistingUserPicker();
+});
+document.getElementById('addExistingUserBtn').addEventListener('click', ()=>{
+  const sel = document.getElementById('existingUserPicker');
+  if(sel.disabled || !sel.value) return;
+  const user = state.users.find(u=>u.id===sel.value);
+  if(!user) return;
+  if(!user.projectIds) user.projectIds = [];
+  if(!user.projectIds.includes(currentProjectId)) user.projectIds.push(currentProjectId);
+  logHistory(`Added existing user "${user.username}" (${roleLabel(user.role)}) to this project`);
+  saveState();
+  renderUserList();
+  renderExistingUserPicker();
 });
 document.getElementById('userList').addEventListener('click', e=>{
   if(e.target.dataset.action==='delete-user'){
     const target = state.users.find(u=>u.id===e.target.dataset.id);
     if(!target) return;
-    if(!confirm(`Remove user "${target.username}"?`)) return;
-    state.users = state.users.filter(u=>u.id!==target.id);
-    logHistory(`Removed user "${target.username}"`);
+    const ids = userProjectIds(target);
+    if(ids.length > 1){
+      if(!confirm(`Remove "${target.username}" from this project? They'll keep their access to your other project(s).`)) return;
+      target.projectIds = ids.filter(pid=>pid!==currentProjectId);
+      logHistory(`Removed "${target.username}" from this project`);
+    } else {
+      if(!confirm(`Delete the user "${target.username}" entirely? This removes their account from the platform.`)) return;
+      state.users = state.users.filter(u=>u.id!==target.id);
+      logHistory(`Deleted user "${target.username}"`);
+    }
     saveState();
     populateUsernameDatalist();
     renderUserList();
+    renderExistingUserPicker();
   }
+});
+
+/* ---------------- events: projects ---------------- */
+function renderProjects(){
+  const listEl = document.getElementById('projectList');
+  if(!listEl) return;
+  if(!appData.projectOrder.length){
+    listEl.innerHTML = blankNoticeHTML('No projects yet — create the first one below.');
+    return;
+  }
+  listEl.innerHTML = appData.projectOrder.map(pid=>{
+    const p = appData.projects[pid];
+    if(!p) return '';
+    return `
+      <div class="project-card" data-id="${pid}">
+        <div class="project-card-info">
+          <h3>${escapeAttr(p.title)}</h3>
+          <div class="p-couple">${escapeAttr(p.meta.bride||'Bride')} &amp; ${escapeAttr(p.meta.groom||'Groom')}${p.meta.venue ? ' · '+escapeAttr(p.meta.venue) : ''}</div>
+        </div>
+        <div class="project-card-actions">
+          <button class="btn primary" data-action="open-project" data-id="${pid}">Open</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+document.getElementById('projectList').addEventListener('click', e=>{
+  if(e.target.dataset.action==='open-project'){
+    openProject(e.target.dataset.id);
+  }
+});
+function openProject(pid){
+  if(!appData.projects[pid]) return;
+  currentProjectId = pid;
+  saveCurrentProjectId(pid);
+  showTab('overview');
+  renderAll();
+  applyRoleUI();
+}
+function renderProjectPicker(ids){
+  const listEl = document.getElementById('projectPickerList');
+  listEl.innerHTML = ids.map(pid=>{
+    const p = appData.projects[pid];
+    if(!p) return '';
+    return `
+      <div class="project-card" data-id="${pid}">
+        <div class="project-card-info">
+          <h3>${escapeAttr(p.title)}</h3>
+          <div class="p-couple">${escapeAttr(p.meta.bride||'Bride')} &amp; ${escapeAttr(p.meta.groom||'Groom')}</div>
+        </div>
+        <div class="project-card-actions">
+          <button class="btn primary" data-action="pick-project" data-id="${pid}">Open</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+document.getElementById('projectPickerList').addEventListener('click', e=>{
+  if(e.target.dataset.action==='pick-project'){
+    const pid = e.target.dataset.id;
+    document.getElementById('projectPickerOverlay').style.display = 'none';
+    openProject(pid);
+  }
+});
+document.getElementById('projectPickerCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('projectPickerOverlay').style.display = 'none';
+});
+document.getElementById('switchProjectBtn').addEventListener('click', ()=>{
+  document.getElementById('profileMenu').classList.remove('open');
+  const ids = accessibleProjectIds();
+  renderProjectPicker(ids);
+  document.getElementById('projectPickerOverlay').style.display = 'flex';
+});
+document.getElementById('createProjectBtn').addEventListener('click', ()=>{
+  const errEl = document.getElementById('newProjectError');
+  const title = document.getElementById('newProjectTitle').value.trim();
+  const brideName = document.getElementById('newProjectBrideName').value.trim();
+  const brideUsername = document.getElementById('newProjectBrideUsername').value.trim();
+  const bridePassword = document.getElementById('newProjectBridePassword').value;
+  const groomName = document.getElementById('newProjectGroomName').value.trim();
+  const groomUsername = document.getElementById('newProjectGroomUsername').value.trim();
+  const groomPassword = document.getElementById('newProjectGroomPassword').value;
+  if(!title){ errEl.textContent = 'Project title is required.'; return; }
+  if(!brideName || !brideUsername || !bridePassword){ errEl.textContent = "Bride's name, username, and password are required."; return; }
+  if(!groomName || !groomUsername || !groomPassword){ errEl.textContent = "Groom's name, username, and password are required."; return; }
+  if(brideUsername.toLowerCase() === groomUsername.toLowerCase()){ errEl.textContent = 'Bride and Groom usernames must be different.'; return; }
+  if(findUserByName(brideUsername)){ errEl.textContent = `Username "${brideUsername}" is already taken.`; return; }
+  if(findUserByName(groomUsername)){ errEl.textContent = `Username "${groomUsername}" is already taken.`; return; }
+
+  let pid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  while(appData.projects[pid]) pid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const project = freshProjectData(title, groomName, brideName);
+  appData.projects[pid] = project;
+  appData.projectOrder.push(pid);
+  appData.users.push({ id:uid(), username:brideUsername, passwordHash: simpleHash(bridePassword), role:'bride', createdBy: currentUser.username, projectIds:[pid] });
+  appData.users.push({ id:uid(), username:groomUsername, passwordHash: simpleHash(groomPassword), role:'groom', createdBy: currentUser.username, projectIds:[pid] });
+
+  errEl.textContent = '';
+  document.getElementById('newProjectTitle').value = '';
+  document.getElementById('newProjectBrideName').value = '';
+  document.getElementById('newProjectBrideUsername').value = '';
+  document.getElementById('newProjectBridePassword').value = '';
+  document.getElementById('newProjectGroomName').value = '';
+  document.getElementById('newProjectGroomUsername').value = '';
+  document.getElementById('newProjectGroomPassword').value = '';
+
+  saveState();
+  renderProjects();
+  populateUsernameDatalist();
 });
 
 /* ---------------- boot ---------------- */
