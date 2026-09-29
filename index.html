@@ -78,10 +78,15 @@
     font-family:'Inter',sans-serif; font-weight:600; margin:0 0 6px;
   }
   .hero-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:14px; width:100%; }
-  .hero-meta > div{ flex:1 1 140px; min-width:120px; }
+  .hero-meta > div{ flex:1 1 130px; min-width:110px; }
   .hero-meta label{
     display:block; font-size:10px; text-transform:uppercase; letter-spacing:1.5px;
     color:var(--gold-light); opacity:0.85; margin-bottom:4px;
+  }
+  .hero-meta .countdown-box{ flex:1 1 150px; min-width:130px; }
+  .countdown-value{
+    font-family:'Cormorant Garamond',serif; font-size:17px; font-weight:700; color:#fff;
+    padding:4px 0; border-bottom:1px solid transparent; white-space:nowrap;
   }
   header.hero .hero-meta input{
     background:transparent; border:none; border-bottom:1px solid rgba(216,189,130,0.45);
@@ -179,12 +184,12 @@
   .add-row td{ background:var(--paper); padding:6px 8px; border-bottom:1px solid var(--line); }
   .add-row button{ width:100%; text-align:left; }
 
-  input[type=text], input[type=number], input[type=date], select{
+  input[type=text], input[type=password], input[type=number], input[type=date], select{
     font-family:'Inter',sans-serif; font-size:13px; border:1px solid transparent; background:transparent;
     padding:5px 6px; border-radius:6px; width:100%; color:var(--ink);
   }
-  input[type=text]:hover, input[type=number]:hover, input[type=date]:hover, select:hover{ border-color:var(--line); }
-  input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, select:focus{
+  input[type=text]:hover, input[type=password]:hover, input[type=number]:hover, input[type=date]:hover, select:hover{ border-color:var(--line); }
+  input[type=text]:focus, input[type=password]:focus, input[type=number]:focus, input[type=date]:focus, select:focus{
     outline:none; border-color:var(--gold); background:var(--beige-dim);
   }
   /* numbers: left-aligned & select-all-on-focus (via JS) so typing isn't awkward */
@@ -374,6 +379,7 @@
     .hero-meta{ gap:14px; }
     .hero-meta label{ font-size:9.5px; }
     .hero-meta input{ font-size:15px; }
+    .countdown-value{ font-size:15px; }
 
     .tabs-inner{ scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch; }
     .tab-btn{ padding:11px 13px 9px; font-size:12px; scroll-snap-align:start; }
@@ -404,7 +410,7 @@
     #guestTableGroom, #guestTableBride{ min-width:520px; }
 
     /* larger touch targets */
-    input[type=text], input[type=number], input[type=date], select{
+    input[type=text], input[type=password], input[type=number], input[type=date], select{
       font-size:16px; /* prevents iOS Safari auto-zoom on focus */
       padding:7px 7px;
     }
@@ -528,6 +534,10 @@
         <div>
           <label for="dateInput">Wedding date</label>
           <input type="date" id="dateInput">
+        </div>
+        <div class="countdown-box">
+          <label>Countdown</label>
+          <div class="countdown-value" id="countdownValue">Set your date</div>
         </div>
       </div>
     </div>
@@ -1481,6 +1491,25 @@ function renderMeta(){
   document.getElementById('brideGuestTitle').textContent = (state.meta.bride || "Bride") + "'s";
   document.querySelectorAll('button[data-side="groom"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.groom||"groom") + "'s list");
   document.querySelectorAll('button[data-side="bride"]').forEach(b=>b.textContent = "+ Add guest to " + (state.meta.bride||"bride") + "'s list");
+  renderCountdown();
+}
+function renderCountdown(){
+  const el = document.getElementById('countdownValue');
+  if(!el) return;
+  const dateStr = state.meta.date;
+  const parts = (dateStr||'').split('-').map(Number);
+  if(parts.length !== 3 || parts.some(n=>isNaN(n))){
+    el.textContent = 'Set your date';
+    return;
+  }
+  const wedding = new Date(parts[0], parts[1]-1, parts[2]);
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((wedding - todayMidnight) / 86400000);
+  if(diffDays > 1) el.textContent = diffDays + ' days to go';
+  else if(diffDays === 1) el.textContent = '1 day to go';
+  else if(diffDays === 0) el.textContent = "Today's the day! 🎉";
+  else el.textContent = 'Married! ❤️';
 }
 
 /* ---------------- computed totals ---------------- */
@@ -1994,7 +2023,7 @@ document.getElementById('tabBar').addEventListener('click', e=>{
 
 /* ---------------- events: meta ---------------- */
 document.getElementById('venueInput').addEventListener('input', e=>{ state.meta.venue = e.target.value; saveState(); });
-document.getElementById('dateInput').addEventListener('input', e=>{ state.meta.date = e.target.value; saveState(); });
+document.getElementById('dateInput').addEventListener('input', e=>{ state.meta.date = e.target.value; saveState(); renderCountdown(); });
 
 /* renaming the bride/groom updates every place their name is stored as a value
    (funding pledges, payment ledger "paid by" selections) so nothing goes orphaned */
@@ -2197,12 +2226,10 @@ function wireGuestTable(side, bodyId){
     const field = e.target.dataset.field; if(!field) return;
     g[field] = e.target.value;
     saveState();
-    if(field==='name' || field==='notes'){
-      renderGuestSide(side); renderOverview();
-      refocusAfterRerender(tr.dataset.id, field, bodyId);
-    } else {
-      renderGuestSide(side); renderOverview();
-    }
+    /* name/notes are free text and don't affect the counts/pills shown for
+       this list, so we don't touch the DOM here — the input already shows
+       exactly what was typed, and re-rendering would reset the cursor to
+       the end of the field on every keystroke. */
   });
   body.addEventListener('change', e=>{
     const tr = e.target.closest('tr'); if(!tr) return;
@@ -2518,6 +2545,7 @@ document.getElementById('userList').addEventListener('click', e=>{
 saveState(); /* persist any one-time migrations/backfills performed during load */
 attemptAutoLogin(); /* renders the app only if a valid session is found; otherwise the login screen stays up */
 initCloudSync(); /* no-op if FIREBASE_CONFIG is still left as placeholders */
+setInterval(renderCountdown, 60*60*1000); /* keep the countdown accurate if this tab stays open past midnight */
 })();
 </script>
 </body>
