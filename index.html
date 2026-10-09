@@ -221,6 +221,8 @@
   button.btn.ghost{ border-color:var(--line); color:var(--ink-soft); background:none; }
   button.btn.ghost:hover{ background:var(--beige-dim); color:var(--ink); }
   button.btn.small{ padding:4px 10px; font-size:11.5px; border-style:dashed; }
+  button.btn.danger{ border-color:var(--bad); color:var(--bad); }
+  button.btn.danger:hover{ background:var(--bad); color:#fff; }
 
   .table-scroll{ overflow-x:auto; }
 
@@ -624,6 +626,28 @@
         <button class="btn primary" id="createProjectBtn">+ Create project</button>
       </div>
     </div>
+    <div class="panel" id="backupPanel" style="display:none;">
+      <h2>Backups</h2>
+      <p class="sub">Keep a full copy of everything (every project and login) somewhere safe, or restore one. When cloud sync is on, the app also keeps up to 14 daily snapshots in the shared database on its own — no extra setup beyond the rule in the README.</p>
+      <div class="toolbar" style="margin-top:0;">
+        <button class="btn primary" id="downloadFullBackupBtn">Download full backup</button>
+        <button class="btn" id="cloudBackupNowBtn">Back up to the cloud now</button>
+        <button class="btn" id="restoreFileAddBtn">Restore from file (add as new projects)</button>
+        <button class="btn" id="restoreFileReplaceBtn">Restore from file (replace everything)</button>
+        <input type="file" id="restoreFileInput" accept="application/json" style="display:none">
+      </div>
+      <p class="sub" id="lastBackupNote" style="margin:10px 0 0;"></p>
+      <div class="toolbar" style="margin-top:12px;">
+        <button class="btn ghost" id="showCloudBackupsBtn">Show cloud snapshots</button>
+        <span class="sub" id="cloudBackupStatus"></span>
+      </div>
+      <div id="cloudBackupList" class="project-list" style="margin-top:12px;"></div>
+    </div>
+    <div class="panel" id="recoverPanel" style="display:none;">
+      <h2>Recover data found on this device</h2>
+      <p class="sub">Older copies of your data that are still stored in this browser. Restoring one adds it as a new project (plus any logins that don't exist yet) — it never overwrites or deletes what you already have.</p>
+      <div id="recoverList" class="project-list"></div>
+    </div>
   </section>
 
   <!-- Shown instead of any project tab's content when no project is selected yet -->
@@ -855,7 +879,6 @@
     <span class="save-indicator" id="saveIndicator">Saved ✓</span>
     <button class="btn ghost" id="exportBtn">Export backup (.json)</button>
     <button class="btn ghost" id="importBtn">Import backup</button>
-    <button class="btn ghost" id="resetBtn">Reset to blank</button>
     <input type="file" id="importFile" accept="application/json" style="display:none">
   </span>
 </footer>
@@ -1318,43 +1341,49 @@ function upgradeFlatToV3(flat){
    returns a valid v3 { projects, projectOrder, users } object. Used for data
    coming from localStorage, an imported backup file, or the cloud — so every
    entry point is defended by the exact same logic. */
+function isRecognisedAppShape(x){
+  return !!x && typeof x === 'object' && !!((x.projects && x.projectOrder) || (x.budget && x.guests) || (x.estimate && x.actual));
+}
+function ensureSaneAppData(d){
+  if(!Array.isArray(d.users)) d.users = [];
+  d.users = d.users.filter(u=>u && typeof u.username === 'string' && u.username);
+  if(!d.users.some(u=>u.role==='superadmin')){
+    /* never allow a state where nobody can sign in */
+    d.users.push({ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null });
+  }
+  if(!d.projects || typeof d.projects !== 'object') d.projects = {};
+  if(!Array.isArray(d.projectOrder)) d.projectOrder = [];
+  d.projectOrder = d.projectOrder.filter(pid=>d.projects[pid]);
+  Object.keys(d.projects).forEach(pid=>{ if(!d.projectOrder.includes(pid)) d.projectOrder.push(pid); });
+  return d;
+}
 function normalizeAppData(raw){
   if(!raw || typeof raw !== 'object') return defaultAppData();
   if(raw.projects && raw.projectOrder){
     Object.keys(raw.projects).forEach(pid=>{ backfillProjectFields(raw.projects[pid]); });
-    if(!raw.users) raw.users = [];
-    if(!raw.users.some(u=>u.role==='superadmin')){
-      raw.users.push({ id:uid(), username:"Super_Admin", passwordHash: simpleHash("Super_Admin_26"), role:"superadmin", createdBy:null });
-    }
-    return raw;
+    return ensureSaneAppData(raw);
   }
   if(raw.budget && raw.guests){
-    return upgradeFlatToV3(raw);
+    return ensureSaneAppData(upgradeFlatToV3(raw));
   }
   if(raw.estimate && raw.actual){
-    return upgradeFlatToV3(migrateFromV1(raw));
+    return ensureSaneAppData(upgradeFlatToV3(migrateFromV1(raw)));
   }
   return defaultAppData();
 }
 
 function loadAppData(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY_V3);
-    if(raw){
+  /* try every storage key this app has ever used, newest first, and accept
+     whatever recognisable data is in it — whichever key it's sitting under */
+  const keys = [STORAGE_KEY_V3, STORAGE_KEY, OLD_STORAGE_KEY];
+  for(const key of keys){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) continue;
       const parsed = JSON.parse(raw);
-      if(parsed && parsed.projects) return normalizeAppData(parsed);
-    }
-    const v2raw = localStorage.getItem(STORAGE_KEY);
-    if(v2raw){
-      const parsed = JSON.parse(v2raw);
-      if(parsed && parsed.budget && parsed.guests) return normalizeAppData(parsed);
-    }
-    const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
-    if(oldRaw){
-      const oldParsed = JSON.parse(oldRaw);
-      if(oldParsed && oldParsed.estimate && oldParsed.actual) return normalizeAppData(oldParsed);
-    }
-  }catch(e){}
+      if(isRecognisedAppShape(parsed)) return normalizeAppData(parsed);
+    }catch(e){}
+  }
   return defaultAppData();
 }
 
@@ -1394,6 +1423,51 @@ Object.defineProperty(state, 'users', {
 });
 let saveTimer = null;
 let cloudPushTimer = null;
+
+/* ---------------- safety helpers: stable comparison + local backups ---------------- */
+function stableStringify(o, skipTopLevelRev){
+  function sortDeep(v, top){
+    if(Array.isArray(v)) return v.map(x=>sortDeep(x,false));
+    if(v && typeof v === 'object'){
+      const out = {};
+      Object.keys(v).sort().forEach(k=>{ if(top && skipTopLevelRev && k==='rev') return; out[k] = sortDeep(v[k], false); });
+      return out;
+    }
+    return v;
+  }
+  return JSON.stringify(sortDeep(o, true));
+}
+const LOCAL_BACKUP_KEY = 'weddingAppLocalBackups_v1';
+function readLocalBackups(){
+  try{ const l = JSON.parse(localStorage.getItem(LOCAL_BACKUP_KEY) || '[]'); return Array.isArray(l) ? l : []; }catch(e){ return []; }
+}
+/* a state that is just the untouched starter data isn't worth backing up */
+function isPristineAppData(d){
+  if(!d || !d.projects) return true;
+  if((d.users||[]).length > 1) return false;
+  if(Object.keys(d.projects).length > 1) return false;
+  return Object.keys(d.projects).every(pid=>{
+    const p = d.projects[pid];
+    return !(p.history && p.history.length);
+  });
+}
+/* Keeps the last few snapshots of this device's data, taken just before it is
+   ever replaced by data from the cloud. This is what makes a bad sync
+   recoverable instead of permanent. */
+function backupLocalCopy(reason){
+  try{
+    if(!appData || isPristineAppData(appData)) return;
+    const json = JSON.stringify(appData);
+    if(json.length > 450000) return;
+    const sig = simpleHash(stableStringify(appData, true));
+    const list = readLocalBackups();
+    if(list.some(b=>b.sig === sig)) return;
+    list.unshift({ ts: Date.now(), reason, sig, json });
+    while(list.length > 3) list.pop();
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(list));
+  }catch(e){ /* storage full — skip rather than break saving */ }
+}
+
 function saveState(){
   localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(appData));
   const ind = document.getElementById('saveIndicator');
@@ -1401,16 +1475,104 @@ function saveState(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>ind.classList.remove('show'), 900);
 
-  if(cloudSyncEnabled && cloudDocRef){
+  /* Never push to the cloud until this device has actually heard back from
+     the server at least once — otherwise a brand-new / blank device could
+     overwrite the real shared data with its own empty starter data. */
+  if(cloudSyncEnabled && cloudDocRef && cloudServerSynced){
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(pushStateToCloud, 700);
   }
 }
+
+/* Pushes use a transaction that only succeeds if nobody else has changed the
+   shared data since this device last saw it (checked via a revision counter).
+   If someone has, this device's copy is backed up and the newer shared data
+   is loaded instead — a stale or blank device can never overwrite newer data. */
+let cloudBaseRev = 0;
+let lastPushedRev = null;
+let cloudServerSynced = false;
 function pushStateToCloud(){
-  if(!cloudDocRef) return;
-  cloudDocRef.set(JSON.parse(JSON.stringify(appData))).catch(err=>{
+  if(!cloudDocRef || !cloudServerSynced) return;
+  const db = firebase.firestore();
+  const ref = cloudDocRef;
+  db.runTransaction(async tx=>{
+    const snap = await tx.get(ref);
+    /* take our own copy of what's there right now, before writing anything */
+    const pre = snap.exists ? JSON.parse(JSON.stringify(snap.data() || {})) : null;
+    const cloudRev = pre ? (pre.rev || 0) : 0;
+    if(pre && cloudRev !== cloudBaseRev){
+      return { conflict:true, remote:pre };
+    }
+    const next = JSON.parse(JSON.stringify(appData));
+    next.rev = cloudRev + 1;
+    tx.set(ref, next);
+    return { rev: next.rev, pre };
+  }).then(res=>{
+    if(res && res.conflict){
+      backupLocalCopy('replaced by newer shared data');
+      pendingRemoteAppData = normalizeAppData(res.remote);
+      applyPendingRemoteStateIfSafe();
+    } else if(res){
+      lastPushedRev = res.rev;
+      cloudBaseRev = res.rev;
+      appData.rev = res.rev;
+      try{ localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(appData)); }catch(e){}
+      maybeSnapshotPreviousCloudState(res.pre);
+    }
+  }).catch(err=>{
     console.error('Cloud sync: failed to save.', err);
   });
+}
+
+/* ---------------- automatic daily cloud snapshots ----------------
+   The first time anyone saves on a given day, the shared data as it was just
+   BEFORE that save is copied into one of 14 rotating backup slots (so roughly
+   the last two weeks stay available). A blank/untouched state is never
+   backed up, so an accidental reset can't push a good snapshot out. This is a
+   separate best-effort step: if the database rules don't allow it, normal
+   saving is completely unaffected. */
+const BACKUP_SLOTS = 14;
+let cloudBackupProblem = null; /* 'blocked' | 'error' | null */
+function cloudDayNumber(){ return Math.floor(Date.now() / 86400000); }
+function cloudBackupRef(name){
+  return firebase.firestore().collection(FIRESTORE_COLLECTION).doc(name);
+}
+async function maybeSnapshotPreviousCloudState(pre){
+  try{
+    if(!pre || !cloudSyncEnabled) return;
+    const norm = normalizeAppData(JSON.parse(JSON.stringify(pre)));
+    if(isPristineAppData(norm)) return;
+    const day = cloudDayNumber();
+    const ref = cloudBackupRef('backup_' + (day % BACKUP_SLOTS));
+    const cur = await ref.get();
+    if(cur.exists && (cur.data() || {}).day === day) return; /* already have today's */
+    const json = JSON.stringify(pre);
+    if(json.length > 900000) return;
+    await ref.set({ day, savedAt: Date.now(), rev: pre.rev || 0, kind: 'daily', json });
+    cloudBackupProblem = null;
+  }catch(err){
+    cloudBackupProblem = (err && err.code === 'permission-denied') ? 'blocked' : 'error';
+  }
+}
+async function loadCloudBackups(){
+  const names = [];
+  for(let i=0;i<BACKUP_SLOTS;i++) names.push('backup_' + i);
+  names.push('backup_manual');
+  const out = [];
+  for(const name of names){
+    try{
+      const snap = await cloudBackupRef(name).get();
+      if(!snap.exists) continue;
+      const d = snap.data() || {};
+      if(!d.json) continue;
+      out.push({ name, savedAt: d.savedAt || 0, kind: d.kind || 'daily', json: d.json });
+    }catch(err){
+      cloudBackupProblem = (err && err.code === 'permission-denied') ? 'blocked' : 'error';
+      throw err;
+    }
+  }
+  out.sort((a,b)=>b.savedAt - a.savedAt);
+  return out;
 }
 
 /* ---------------- cloud sync: receiving remote changes ----------------
@@ -1427,8 +1589,11 @@ function isCurrentlyEditingAField(){
 function applyPendingRemoteStateIfSafe(){
   if(!pendingRemoteAppData) return;
   if(isCurrentlyEditingAField()) return; /* try again after the field loses focus */
+  backupLocalCopy('replaced by shared data');
   appData = pendingRemoteAppData;
+  cloudBaseRev = appData.rev || 0;
   pendingRemoteAppData = null;
+  clearTimeout(cloudPushTimer);
   localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(appData));
   if(!currentUser) return; /* nothing logged in on this device yet — the login screen doesn't show data anyway */
   if(!findUserByName(currentUser.username)){
@@ -1477,25 +1642,47 @@ function attachCloudListener(){
   const db = firebase.firestore();
   cloudDocRef = db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC);
   cloudDocRef.onSnapshot(snap=>{
+    const fromCache = !!(snap.metadata && snap.metadata.fromCache);
+    if(fromCache){
+      /* an answer from this device's own (empty) cache is NOT the server saying
+         "there's nothing here" — it usually just means we're offline. Never act
+         on it, and never treat it as a reason to seed the cloud. */
+      if(!cloudServerSynced) setSyncBadge('connecting', 'Offline — changes stay on this device');
+      return;
+    }
     if(!snap.exists){
-      /* nothing in the cloud yet — seed it from whatever is on this device right now */
-      if(!cloudReady){ pushStateToCloud(); }
-      cloudReady = true;
+      /* the SERVER confirmed there is genuinely nothing in the cloud yet —
+         seed it from what's on this device */
+      cloudServerSynced = true;
+      cloudBaseRev = 0;
       setSyncBadge('live', 'Live — synced across devices');
+      pushStateToCloud();
       return;
     }
     const remote = normalizeAppData(snap.data());
-    const remoteJSON = JSON.stringify(remote);
-    cloudReady = true;
+    const remoteRev = remote.rev || 0;
+    const firstSync = !cloudServerSynced;
+    cloudServerSynced = true;
     setSyncBadge('live', 'Live — synced across devices');
-    if(remoteJSON === JSON.stringify(appData)){
-      return; /* this is just our own write echoing back — nothing new */
+
+    if(!firstSync && remoteRev === lastPushedRev){
+      cloudBaseRev = remoteRev;
+      return; /* this is just our own save echoing back */
+    }
+    if(stableStringify(remote, true) === stableStringify(appData, true)){
+      cloudBaseRev = remoteRev;
+      appData.rev = remoteRev;
+      return; /* already identical — nothing to do */
     }
     pendingRemoteAppData = remote;
     applyPendingRemoteStateIfSafe();
   }, err=>{
     console.error('Cloud sync: lost connection to the shared data.', err);
-    setSyncBadge('error', 'Sync error — saving locally only');
+    if(err && err.code === 'permission-denied'){
+      setSyncBadge('error', 'Sync blocked by Firestore rules — saving locally only');
+    } else {
+      setSyncBadge('error', 'Sync error — saving locally only');
+    }
   });
 }
 
@@ -2675,19 +2862,6 @@ document.getElementById('importFile').addEventListener('change', e=>{
   reader.readAsText(file);
   e.target.value = '';
 });
-document.getElementById('resetBtn').addEventListener('click', ()=>{
-  const p = currentProject();
-  if(!p){ alert('Open a project first.'); return; }
-  const scope = cloudSyncEnabled
-    ? `This clears all budget, guest, checklist, and agenda data in "${p.title}" for EVERYONE using this shared link, and starts that project fresh.`
-    : `This clears all budget, guest, checklist, and agenda data in "${p.title}" on this device, and starts that project fresh.`;
-  if(confirm(scope + " The project's title and couple's names are kept. Export a backup first if you want to keep the data. Continue?")){
-    const fresh = freshProjectData(p.title, p.meta.groom, p.meta.bride);
-    fresh.meta = p.meta; /* keep venue/date too, not just names */
-    appData.projects[currentProjectId] = fresh;
-    saveState(); renderAll();
-  }
-});
 
 /* ---------------- auth events: login, profile menu, password, users ---------------- */
 document.getElementById('loginBtn').addEventListener('click', ()=>{
@@ -2855,6 +3029,12 @@ document.getElementById('userList').addEventListener('click', e=>{
 function renderProjects(){
   const listEl = document.getElementById('projectList');
   if(!listEl) return;
+  renderRecoverPanel();
+  renderBackupPanel();
+  if(!currentUser || currentUser.role !== 'superadmin'){
+    listEl.innerHTML = ''; /* other roles never get the project list in the page at all */
+    return;
+  }
   if(!appData.projectOrder.length){
     listEl.innerHTML = blankNoticeHTML('No projects yet — create the first one below.');
     return;
@@ -2869,15 +3049,265 @@ function renderProjects(){
           <div class="p-couple">${escapeAttr(p.meta.bride||'Bride')} &amp; ${escapeAttr(p.meta.groom||'Groom')}${p.meta.venue ? ' · '+escapeAttr(p.meta.venue) : ''}</div>
         </div>
         <div class="project-card-actions">
+          <button class="btn danger" data-action="reset-project" data-id="${pid}" title="Clear this project's data and start it fresh">Reset</button>
           <button class="btn primary" data-action="open-project" data-id="${pid}">Open</button>
         </div>
       </div>
     `;
   }).join('');
 }
+/* Resets ONE project to a fresh template. Only that project's entry in
+   appData.projects is replaced — every other project, and every login, is left
+   exactly as it was. The project's title, couple's names, venue and date are
+   kept. Super Admin only. */
+function resetProject(pid){
+  if(!currentUser || currentUser.role !== 'superadmin') return;
+  const p = appData.projects[pid];
+  if(!p) return;
+  const who = cloudSyncEnabled ? 'for EVERYONE using this shared link' : 'on this device';
+  if(!confirm(`Reset "${p.title}"?\n\nThis clears all budget, payment, guest, checklist, agenda and history data in this project ${who} and starts it fresh. Its title, the couple's names, venue and date are kept, and no other project is touched.\n\nDownload a backup first if you may want this data again.`)) return;
+  backupLocalCopy('before a project reset');
+  const fresh = freshProjectData(p.title, p.meta.groom, p.meta.bride);
+  fresh.meta = p.meta; /* keep venue and date too, not just the names */
+  fresh.history = [{ id: uid(), ts: Date.now(), user: currentUser.username, role: currentUser.role, action: 'Project reset to a fresh template' }];
+  appData.projects[pid] = fresh;
+  saveState();
+  renderAll();
+}
 document.getElementById('projectList').addEventListener('click', e=>{
-  if(e.target.dataset.action==='open-project'){
+  const action = e.target.dataset.action;
+  if(action==='open-project'){
     openProject(e.target.dataset.id);
+  } else if(action==='reset-project'){
+    resetProject(e.target.dataset.id);
+  }
+});
+
+/* ---------------- recovery of data still stored on this device ---------------- */
+let recoverableSources = [];
+function findRecoverableSources(){
+  const found = [];
+  const seen = new Set();
+  const currentSig = simpleHash(stableStringify(appData, true));
+  function consider(label, rawObj){
+    try{
+      if(!isRecognisedAppShape(rawObj)) return;
+      const norm = normalizeAppData(JSON.parse(JSON.stringify(rawObj)));
+      const sig = simpleHash(stableStringify(norm, true));
+      if(sig === currentSig || seen.has(sig)) return;
+      if(isPristineAppData(norm)) return;
+      seen.add(sig);
+      found.push({ label, data: norm });
+    }catch(e){}
+  }
+  [[STORAGE_KEY_V3,'Saved copy on this device'],[STORAGE_KEY,'Copy from before the multiple-projects update'],[OLD_STORAGE_KEY,'Oldest saved copy']].forEach(([key,label])=>{
+    try{ const raw = localStorage.getItem(key); if(raw) consider(label, JSON.parse(raw)); }catch(e){}
+  });
+  readLocalBackups().forEach(b=>{
+    try{ consider(`Automatic backup from ${new Date(b.ts).toLocaleString()} (${b.reason})`, JSON.parse(b.json)); }catch(e){}
+  });
+  return found;
+}
+function renderRecoverPanel(){
+  const panel = document.getElementById('recoverPanel');
+  if(!panel) return;
+  if(!currentUser || currentUser.role !== 'superadmin'){ panel.style.display = 'none'; return; }
+  recoverableSources = findRecoverableSources();
+  if(!recoverableSources.length){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  document.getElementById('recoverList').innerHTML = recoverableSources.map((s,i)=>{
+    const titles = s.data.projectOrder.map(pid=>s.data.projects[pid].title).join(', ');
+    const people = s.data.users.filter(u=>u.role!=='superadmin').map(u=>u.username).join(', ') || 'none';
+    return `
+      <div class="project-card">
+        <div class="project-card-info">
+          <h3>${escapeAttr(s.label)}</h3>
+          <div class="p-couple">Projects: ${escapeAttr(titles)} · Logins: ${escapeAttr(people)}</div>
+        </div>
+        <div class="project-card-actions">
+          <button class="btn primary" data-action="restore-source" data-index="${i}">Restore as new project</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+/* Adds everything in `srcData` as NEW projects (and any logins that don't
+   exist yet). Never overwrites or deletes anything already here. */
+function mergeAppDataAsNewProjects(srcData, labelSuffix){
+  const idMap = {};
+  srcData.projectOrder.forEach(pid=>{
+    const p = srcData.projects[pid]; if(!p) return;
+    let newPid = pid;
+    while(appData.projects[newPid]) newPid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    const copy = JSON.parse(JSON.stringify(p));
+    copy.title = (copy.title || 'Project') + (labelSuffix ? ' ' + labelSuffix : '');
+    appData.projects[newPid] = copy;
+    appData.projectOrder.push(newPid);
+    idMap[pid] = newPid;
+  });
+  srcData.users.forEach(u=>{
+    if(u.role === 'superadmin') return; /* keep the current Super Admin login as-is */
+    const mapped = (u.projectIds || []).map(id=>idMap[id]).filter(Boolean);
+    const existing = findUserByName(u.username);
+    if(existing){
+      existing.projectIds = Array.from(new Set([...(existing.projectIds||[]), ...mapped]));
+    } else {
+      appData.users.push(Object.assign({}, JSON.parse(JSON.stringify(u)), { projectIds: mapped }));
+    }
+  });
+  saveState();
+  renderAll();
+  populateUsernameDatalist();
+}
+/* Replaces EVERYTHING (all projects and logins) with the contents of a full
+   backup. This device's current copy is kept as a local backup first, so even
+   this can be undone from "Recover data found on this device". */
+function replaceEverythingWith(srcData){
+  backupLocalCopy('before a full restore');
+  const copy = JSON.parse(JSON.stringify(srcData));
+  delete copy.rev;
+  appData = ensureSaneAppData(copy);
+  if(currentProjectId && !appData.projects[currentProjectId]){ currentProjectId = null; saveCurrentProjectId(null); }
+  saveState();
+  if(currentUser && !findUserByName(currentUser.username)){ doLogout(); return; }
+  establishProjectContextAfterLogin({ skipIfProjectAlreadySet: true });
+  renderAll();
+  applyRoleUI();
+}
+document.getElementById('recoverList').addEventListener('click', e=>{
+  if(e.target.dataset.action !== 'restore-source') return;
+  const src = recoverableSources[Number(e.target.dataset.index)];
+  if(!src) return;
+  if(!confirm('Add this recovered data as new project(s)? Nothing you already have will be changed.')) return;
+  mergeAppDataAsNewProjects(src.data, '(recovered)');
+});
+
+/* ---------------- backups panel ---------------- */
+const LAST_BACKUP_KEY = 'weddingAppLastFullDownload_v1';
+function summariseAppData(d){
+  const titles = d.projectOrder.map(pid=>d.projects[pid].title).join(', ') || 'none';
+  const people = d.users.filter(u=>u.role!=='superadmin').map(u=>u.username).join(', ') || 'none';
+  return `Projects: ${titles} · Logins: ${people}`;
+}
+function renderBackupPanel(){
+  const panel = document.getElementById('backupPanel');
+  if(!panel) return;
+  if(!currentUser || currentUser.role !== 'superadmin'){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const cloudBtns = ['cloudBackupNowBtn','showCloudBackupsBtn'];
+  cloudBtns.forEach(id=>{ document.getElementById(id).style.display = cloudSyncEnabled ? '' : 'none'; });
+  let last = null;
+  try{ last = Number(localStorage.getItem(LAST_BACKUP_KEY)) || null; }catch(e){}
+  document.getElementById('lastBackupNote').textContent = last
+    ? `Last full backup downloaded from this device: ${new Date(last).toLocaleString()}.`
+    : `You haven't downloaded a full backup from this device yet — it's worth doing now and then, and before any big change.`;
+  const st = document.getElementById('cloudBackupStatus');
+  if(cloudSyncEnabled){
+    st.textContent = cloudBackupProblem === 'blocked'
+      ? 'Cloud snapshots are blocked by your Firestore rules — update the rule as described in the README.'
+      : (cloudBackupProblem === 'error' ? "Couldn't reach the cloud snapshots just now." : '');
+  } else {
+    st.textContent = '';
+  }
+}
+document.getElementById('downloadFullBackupBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(appData, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = `wedding-full-backup-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  try{ localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())); }catch(e){}
+  renderBackupPanel();
+});
+document.getElementById('cloudBackupNowBtn').addEventListener('click', async ()=>{
+  const st = document.getElementById('cloudBackupStatus');
+  if(!cloudSyncEnabled || !cloudDocRef || !cloudServerSynced){ st.textContent = 'Not connected to the cloud yet.'; return; }
+  try{
+    const json = JSON.stringify(appData);
+    if(json.length > 900000){ st.textContent = 'Too large for a cloud snapshot — use "Download full backup" instead.'; return; }
+    await cloudBackupRef('backup_manual').set({ savedAt: Date.now(), rev: appData.rev || 0, kind: 'manual', json });
+    cloudBackupProblem = null;
+    st.textContent = 'Saved a cloud snapshot just now.';
+  }catch(err){
+    cloudBackupProblem = (err && err.code === 'permission-denied') ? 'blocked' : 'error';
+    renderBackupPanel();
+  }
+});
+let restoreFileMode = 'add';
+document.getElementById('restoreFileAddBtn').addEventListener('click', ()=>{ restoreFileMode = 'add'; document.getElementById('restoreFileInput').click(); });
+document.getElementById('restoreFileReplaceBtn').addEventListener('click', ()=>{ restoreFileMode = 'replace'; document.getElementById('restoreFileInput').click(); });
+document.getElementById('restoreFileInput').addEventListener('change', e=>{
+  const file = e.target.files[0]; e.target.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!isRecognisedAppShape(parsed)){ alert("That file doesn't look like a backup from this app."); return; }
+      const isFull = !!(parsed.projects && parsed.projectOrder);
+      const norm = normalizeAppData(parsed);
+      if(restoreFileMode === 'replace'){
+        if(!isFull){ alert("That's a single-project backup, so it can only be added as a new project, not used to replace everything."); return; }
+        if(!confirm(`Replace EVERYTHING with this backup?\n\n${summariseAppData(norm)}\n\nYour current data is kept as an automatic local backup first.`)) return;
+        replaceEverythingWith(norm);
+      } else {
+        if(!confirm(`Add this backup as new project(s)?\n\n${summariseAppData(norm)}\n\nNothing you already have will be changed.`)) return;
+        mergeAppDataAsNewProjects(norm, '(restored)');
+      }
+    }catch(err){
+      alert("Couldn't read that file.");
+    }
+  };
+  reader.readAsText(file);
+});
+let cloudBackupsLoaded = [];
+document.getElementById('showCloudBackupsBtn').addEventListener('click', async ()=>{
+  const st = document.getElementById('cloudBackupStatus');
+  const listEl = document.getElementById('cloudBackupList');
+  if(!cloudSyncEnabled || !cloudDocRef){ st.textContent = 'Cloud sync is not connected.'; return; }
+  st.textContent = 'Loading…';
+  try{
+    cloudBackupsLoaded = await loadCloudBackups();
+  }catch(err){
+    listEl.innerHTML = '';
+    renderBackupPanel();
+    return;
+  }
+  st.textContent = '';
+  if(!cloudBackupsLoaded.length){
+    listEl.innerHTML = blankNoticeHTML('No cloud snapshots yet. The first one is created automatically the first time anyone saves a change on a given day.');
+    return;
+  }
+  listEl.innerHTML = cloudBackupsLoaded.map((b,i)=>{
+    let summary = '';
+    try{ summary = summariseAppData(normalizeAppData(JSON.parse(b.json))); }catch(e){ summary = 'Unreadable snapshot'; }
+    return `
+      <div class="project-card">
+        <div class="project-card-info">
+          <h3>${b.kind==='manual' ? 'Manual snapshot' : 'Daily snapshot'} — ${escapeAttr(new Date(b.savedAt).toLocaleString())}</h3>
+          <div class="p-couple">${escapeAttr(summary)}</div>
+        </div>
+        <div class="project-card-actions">
+          <button class="btn" data-action="cloud-add" data-index="${i}">Add as new projects</button>
+          <button class="btn primary" data-action="cloud-replace" data-index="${i}">Replace everything</button>
+        </div>
+      </div>`;
+  }).join('');
+});
+document.getElementById('cloudBackupList').addEventListener('click', e=>{
+  const action = e.target.dataset.action;
+  if(action !== 'cloud-add' && action !== 'cloud-replace') return;
+  const b = cloudBackupsLoaded[Number(e.target.dataset.index)];
+  if(!b) return;
+  let norm;
+  try{ norm = normalizeAppData(JSON.parse(b.json)); }catch(err){ alert("Couldn't read that snapshot."); return; }
+  if(action === 'cloud-add'){
+    if(!confirm(`Add this snapshot as new project(s)?\n\n${summariseAppData(norm)}\n\nNothing you already have will be changed.`)) return;
+    mergeAppDataAsNewProjects(norm, '(restored)');
+  } else {
+    if(!confirm(`Replace EVERYTHING with this snapshot from ${new Date(b.savedAt).toLocaleString()}?\n\n${summariseAppData(norm)}\n\nYour current data is kept as an automatic local backup first.`)) return;
+    replaceEverythingWith(norm);
   }
 });
 function openProject(pid){
